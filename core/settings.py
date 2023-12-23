@@ -1,5 +1,21 @@
+import os
 from pathlib import Path
 
+import sentry_sdk
+
+# Run Django in debug mode
+DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
+
+# Use Sentry for error reporting
+USE_SENTRY: bool = os.getenv(key="USE_SENTRY", default="True").lower() == "true"
+if USE_SENTRY:
+    sentry_sdk.init(
+        dsn="https://35519536b56710e51cac49522b2cc29f@o4505228040339456.ingest.sentry.io/4506447308914688",
+        environment="Development" if DEBUG else "Production",
+        send_default_pii=True,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -10,8 +26,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-vs^vt2^i3x($cl*p_z$%337=3eh-$2hs&7au6q!2p-0nb5vk=@"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
 ALLOWED_HOSTS = []
 

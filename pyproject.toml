@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.12"
 django = "^5.0"
 whitenoise = {extras = ["brotli"], version = "^6.6.0"}
+sentry-sdk = {extras = ["django"], version = "^1.39.1"}
 
 
 [tool.poetry.group.dev.dependencies]
