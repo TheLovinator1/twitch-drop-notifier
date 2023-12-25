@@ -1,0 +1,21 @@
+{
+    "name": "Twitch drops",
+    "short_name": "Twitch drops",
+    "description": "Twitch drops notifier, API and more",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f69435",
+    "theme_color": "#f69435",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "/icon-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ]
+}

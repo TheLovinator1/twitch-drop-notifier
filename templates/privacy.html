@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}<title>Privacy - Panso</title>{% endblock %}
+{% block description %}Panso privacy policy{% endblock %}
+{% block keywords %}Panso, Panso.se, Privacy{% endblock %}
+{% block content %}
+    <div class="container">
+        <article>
+            <header>
+                <h1>Privacy Policy</h1>
+            </header>
+            <p>
+                Last Updated:
+                <time datetime="2020-12-20">
+                    2023-12-20
+                </time>
+            </p>
+            <section>
+                <h2>What information do we collect?</h2>
+                <h3>Cloudflare</h3>
+                <p>
+                    Our website is protected by Cloudflare for security and performance. Please refer to <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's Privacy Policy</a> for details on how
+                    Cloudflare handles data. We (Panso) can not access any data that Cloudflare collects except for the
+                    following metrics that are displayed in our Cloudflare dashboard:
+                </p>
+                <ul>
+                    <li>Unique Visitors</li>
+                    <li>Total requests</li>
+                    <li>Percentage of requests that were cached</li>
+                    <li>Total bandwidth used</li>
+                    <li>Total data served</li>
+                    <li>Data cached</li>
+                    <li>Top Traffic per country</li>
+                </ul>
+                <h3>Sentry</h3>
+                <p>
+                    We use Sentry to track errors on our website. Errors are stored for 30 days and then automatically
+                    deleted. Information that is collected includes:
+                </p>
+                <ul>
+                    <li>
+                        The <a href="https://en.wikipedia.org/wiki/Stack_trace">stack trace</a>
+                    </li>
+                    <li>
+                        Browser information (For example: <code>Firefox 122.0</code>)
+                    </li>
+                    <li>
+                        User agent (For example: <code>Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101
+                        Firefox/122.0</code>)
+                    </li>
+                    <li>
+                        Operating system information (For example: <code>Windows >=10</code>)
+                    </li>
+                    <li>
+                        URL (For example: <code>https://panso.se/about/</code>)
+                    </li>
+                    <li>
+                        Headers (For example: <code>Accept-Language: en-US,en;q=0.5</code>)
+                    </li>
+                </ul>
+            </section>
+            <section>
+                <h2>Purpose of Data Collection</h2>
+                <p>The data we collect is used for the following purposes:</p>
+                <ul>
+                    <li>Log Files: To identify and address website errors and improve performance.</li>
+                    <li>Cloudflare: For security and content delivery.</li>
+                    <li>Sentry: To identify and address website errors.</li>
+                </ul>
+                <p>None of the data we collect is used for marketing purposes or sold to third parties.</p>
+            </section>
+            <section>
+                <h2>Cookies and Tracking</h2>
+                <p>We do not use cookies or tracking technologies on our website.</p>
+            </section>
+            <section>
+                <h2>Data Sharing</h2>
+                <p>
+                    We do not share your data with third parties. However, please review the privacy policies of Cloudflare
+                    and Sentry for information on how they handle data.
+                </p>
+            </section>
+            <section>
+                <h2>User Rights</h2>
+                <p>
+                    You have the right to access, correct, or delete your information. For any privacy-related inquiries,
+                    please <a href="{% url 'products:contact' %}">contact us</a>.
+                </p>
+            </section>
+            <section>
+                <h2>Retention Period</h2>
+                <p>
+                    Log files may be retained for a limited time for debugging purposes. We do not retain personal
+                    information unless required for legal or business reasons.
+                </p>
+            </section>
+            <section>
+                <h2>Changes to the Privacy Policy</h2>
+                <p>
+                    This privacy policy may be updated. Check the "Last Updated" date at the top of this document to see
+                    when it was last updated.
+                    We will notify you of any material changes.
+                    <br>
+                    You can also check the git commit history for changes to this document <a href="https://github.com/TheLovinator1/panso.se/commits/master/templates/privacy.html">here</a>.
+                </p>
+            </section>
+            <section>
+                <h2>Contact Information</h2>
+                <p>
+                    For privacy concerns or questions, please <a href="{% url 'products:contact' %}">contact us</a>.
+                </p>
+            </section>
+        </article>
+    </div>
+{% endblock %}

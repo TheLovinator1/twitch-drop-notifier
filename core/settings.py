@@ -2,6 +2,10 @@ import os
 from pathlib import Path
 
 import sentry_sdk
+from dotenv import find_dotenv, load_dotenv
+
+# Load environment variables from a .env file
+load_dotenv(dotenv_path=find_dotenv(), verbose=True)
 
 # Run Django in debug mode
 DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
@@ -28,7 +32,11 @@ ADMINS: list[tuple[str, str]] = [
 SECRET_KEY: str = os.getenv("SECRET_KEY", default="")
 
 # A list of strings representing the host/domain names that this Django site can serve.
-ALLOWED_HOSTS: list[str] = [".localhost", "127.0.0.1"]
+ALLOWED_HOSTS: list[str] = [
+    "ttvdrops.lovinator.space",
+    ".localhost",
+    "127.0.0.1",
+]
 
 # The time zone that Django will use to display datetimes in templates and to interpret datetimes entered in forms
 TIME_ZONE = "Europe/Stockholm"
@@ -122,7 +130,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 DATABASES: dict[str, dict[str, str]] = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "postgres",
+        "NAME": "ttvdrops",
         "USER": os.getenv(key="POSTGRES_USER", default=""),
         "PASSWORD": os.getenv(key="POSTGRES_PASSWORD", default=""),
         "HOST": os.getenv(key="POSTGRES_HOST", default=""),
@@ -157,9 +165,10 @@ STORAGES: dict[str, dict[str, str]] = {
 # TODO: Disallow specific commands. See https://redis.io/docs/management/security/#disallowing-specific-commands
 REDIS_PASSWORD: str = os.getenv(key="REDIS_PASSWORD", default="")
 REDIS_HOST: str = os.getenv(key="REDIS_HOST", default="")
+REDIS_PORT: str = os.getenv(key="REDIS_PORT", default="6380")
 CACHES: dict[str, dict[str, str]] = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:6379",
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0",
     },
 }

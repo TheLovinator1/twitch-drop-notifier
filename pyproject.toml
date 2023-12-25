@@ -16,10 +16,12 @@ playwright = "^1.40.0"
 selectolax = "^0.3.17"
 django-simple-history = "^3.4.0"
 pillow = "^10.1.0"
+python-dotenv = "^1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.0"
+djlint = "^1.34.1"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
