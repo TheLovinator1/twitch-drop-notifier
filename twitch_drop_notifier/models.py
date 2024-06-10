@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 from simple_history.models import HistoricalRecords
 
@@ -22,7 +24,7 @@ class Owner(models.Model):
     )
 
     class Meta:
-        ordering: list[str] = ["name"]
+        ordering: ClassVar[list[str]] = ["name"]
         verbose_name: str = "Owner"
         db_table: str = "owner"
         db_table_comment: str = "An owner."
@@ -32,7 +34,6 @@ class Owner(models.Model):
 
 
 class Game(models.Model):
-    # TODO: Maybe int?
     game_id = models.TextField(
         help_text="The ID of the game.",
         verbose_name="Game ID",
@@ -54,7 +55,7 @@ class Game(models.Model):
     )
 
     class Meta:
-        ordering: list[str] = ["display_name"]
+        ordering: ClassVar[list[str]] = ["display_name"]
         verbose_name: str = "Game"
         db_table: str = "game"
         db_table_comment: str = "A game."
@@ -107,7 +108,7 @@ class Reward(models.Model):
     )
 
     class Meta:
-        ordering: list[str] = ["name"]
+        ordering: ClassVar[list[str]] = ["name"]
         verbose_name: str = "Reward"
         db_table: str = "reward"
         db_table_comment: str = "A reward."
@@ -131,7 +132,7 @@ class TwitchChannel(models.Model):
     )
 
     class Meta:
-        ordering: list[str] = ["name"]
+        ordering: ClassVar[list[str]] = ["name"]
         verbose_name: str = "Twitch Channel"
         db_table: str = "twitch_channel"
         db_table_comment: str = "A Twitch channel."
@@ -228,7 +229,7 @@ class TwitchDrop(models.Model):
     )
 
     class Meta:
-        ordering: list[str] = ["name"]
+        ordering: ClassVar[list[str]] = ["name"]
         verbose_name: str = "Twitch Drop"
         db_table: str = "twitch_drop"
         db_table_comment: str = "A Twitch Drop."

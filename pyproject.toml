@@ -8,10 +8,10 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 django = "^5.0.6"
-whitenoise = {extras = ["brotli"], version = "^6.6.0"}
-sentry-sdk = {extras = ["django"], version = "^1.45.0"}
-psycopg = {extras = ["binary"], version = "^3.1.19"}
-redis = {extras = ["hiredis"], version = "^5.0.5"}
+whitenoise = { extras = ["brotli"], version = "^6.6.0" }
+sentry-sdk = { extras = ["django"], version = "^1.45.0" }
+psycopg = { extras = ["binary"], version = "^3.1.19" }
+redis = { extras = ["hiredis"], version = "^5.0.5" }
 playwright = "^1.44.0"
 selectolax = "^0.3.17"
 django-simple-history = "^3.7.0"
@@ -25,6 +25,41 @@ djlint = "^1.34.1"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = [
-  "poetry-core",
+requires = ["poetry-core"]
+
+[tool.ruff]
+# https://docs.astral.sh/ruff/settings/
+target-version = "py312"
+fix = true
+unsafe-fixes = true
+preview = true
+lint.select = ["ALL"]
+line-length = 119
+lint.pydocstyle.convention = "google"
+lint.ignore = [
+  "CPY001", # Missing copyright notice at top of file
+  "D100",   # Checks for undocumented public module definitions.
+  "D101",   # Checks for undocumented public class definitions.
+  "D102",   # Checks for undocumented public method definitions.
+  "D104",   # Missing docstring in public package.
+  "D105",   # Missing docstring in magic method.
+  "D106",   # Checks for undocumented public class definitions, for nested classes.
+  "ERA001", # Found commented-out code
+  "FIX002", # Line contains TODO
+  "COM812", # Checks for the absence of trailing commas.
+  "ISC001", # Checks for implicitly concatenated strings on a single line.
+  "DJ001",  # Checks nullable string-based fields (like CharField and TextField) in Django models.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = [
+  "ARG",     # Unused function args -> fixtures nevertheless are functionally relevant...
+  "FBT",     # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
+  "PLR2004", # Magic value used in comparison, ...
+  "S101",    # asserts allowed in tests...
+  "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+]
+
+"**/migrations/**" = [
+  "RUF012", # Checks for mutable default values in class attributes.
 ]

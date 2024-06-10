@@ -44,10 +44,6 @@ TIME_ZONE = "Europe/Stockholm"
 # If datetimes will be timezone-aware by default. If True, Django will use timezone-aware datetimes internally.
 USE_TZ = True
 
-# Don't use Django's translation system
-# TODO: We should probably make the site available in other languages at some point
-USE_I18N = False
-
 # Decides which translation is served to all users.
 LANGUAGE_CODE = "en-us"
 
@@ -147,7 +143,6 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # The absolute path to the directory where 'python manage.py collectstatic' will copy static files for deployment
-# TODO: Should we store these on Cloudflare? Or at least in RAM to avoid disk I/O?
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 
@@ -161,8 +156,6 @@ STORAGES: dict[str, dict[str, str]] = {
 
 
 # Use Redis for caching
-# TODO: Use a Unix socket instead of TCP/IP for Redis.
-# TODO: Disallow specific commands. See https://redis.io/docs/management/security/#disallowing-specific-commands
 REDIS_PASSWORD: str = os.getenv(key="REDIS_PASSWORD", default="")
 REDIS_HOST: str = os.getenv(key="REDIS_HOST", default="")
 REDIS_PORT: str = os.getenv(key="REDIS_PORT", default="6380")
