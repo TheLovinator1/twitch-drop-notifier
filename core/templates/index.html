@@ -10,61 +10,116 @@
         <meta name="robots" content="index, follow">
         <title>Twitch Drops</title>
         <style>
-            header {
-                    display: flex;
-                    align-items: center;
-                    
-                    justify-content: space-between;
-                    
-                    padding: 10px 30px;
-            }
+        :root {
+            --background-color: #121212;
+            --text-color: #e0e0e0;
+            --header-background: #1e1e1e;
+            --border-color: #333;
+            --button-background: #6441a5;
+            --button-hover-background: #503682;
+        }
+
+        /* Set some good defaults for the page */
+        html {
+            max-width: 88ch;
+            padding: calc(1vmin + 0.5rem);
+            margin-inline: auto;
+            font-size: clamp(1em, 0.909em + 0.45vmin, 1.25em);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        /* Don't underline links and remove the blue/purple color */
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        /* Add a gray background for the game name header */
+        /* This header also contains the button to subscribe to the game */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* So the button is on the right, and the game name is on the left */
+            padding: 10px 30px;
+            background: var(--header-background);
+        }
+
+        /* Remove dot in front of list items */
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        /* Add a border around each game to separate them */
+        .game {
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* Move images away from the border */
+        img {
+            margin: 10px;
+        }
+        
+        /* Button to subscribe to a game */
+        /* For example: Subscribe to Rocket League */
+        button {
+            background-color: var(--button-background);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Make button darker when hovered */
+        button:hover {
+            background-color: var(--button-hover-background);
+        }
+
+        /* Navbar at the top of the page */
+        .navbar {
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Make the logo bigger and bolder and center it */
+        .logo {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
         </style>
     </head>
     <body>
-        <h1>Twitch Drops</h1>
+        <h1 class="logo">Twitch Drops</h1>
+        <div class="navbar">
+            <a href="">API</a> |
+            <a href="https://github.com/sponsors/TheLovinator1">Donate</a>
+        </div>
         {% for organization, org_data in orgs_data.items %}
-            <header>
-                <a href="{{ organization.url }}">
-                    <h2>{{ organization.name }}</h2>
-                </a>
-                <a href="">Subscribe to {{ organization.name }}</a>
-            </header>
             <ul>
                 {% for game, game_data in org_data.games.items %}
-                    <li>
+                    <li class="game">
                         <header>
-                            <a href="https://www.twitch.tv/directory/category/{{ game.slug }}">
-                                <h2>{{ game.display_name }}</h2>
-                            </a>
-                            <a href="{{ game.url }}">Subscribe to {{ game.display_name }}</a>
+                            <h2>
+                                <a href="https://www.twitch.tv/directory/category/{{ game.slug }}">{{ game.display_name }}</a>
+                            </h2>
+                            <button>Subscribe to {{ game.display_name }}</button>
                         </header>
                         <ul>
                             {% for drop_benefit in game_data.drop_benefits %}
-                                <dl>
-                                    <dt>
-                                        <header>
-                                            <a href="{{ drop_benefit.details_url }}">{{ drop_benefit.name }}</a>
-                                        </header>
-                                    </dt>
-                                    <dd>
-                                        <img src="{{ drop_benefit.image_asset_url }}"
-                                             alt="{{ drop_benefit.name }}"
-                                             height="100"
-                                             width="100">
-                                    </dd>
-                                    {% if drop_benefit.entitlement_limit > 1 %}
-                                        <dt>Entitlement Limit</dt>
-                                        <dd>
-                                            {{ drop_benefit.entitlement_limit|default:"N/A" }}
-                                        </dd>
-                                    {% endif %}
-                                    {% if drop_benefit.is_ios_available %}
-                                        <dt>iOS Available</dt>
-                                        <dd>
-                                            {{ drop_benefit.is_ios_available|yesno:"Yes,No" }}
-                                        </dd>
-                                    {% endif %}
-                                </dl>
+                                <li>
+                                    <img src="{{ drop_benefit.image_asset_url }}"
+                                         alt="{{ drop_benefit.name }}"
+                                         height="100"
+                                         width="100">
+                                    <a href="{{ drop_benefit.details_url }}">{{ drop_benefit.name }}</a>
+                                </li>
                             {% endfor %}
                         </ul>
                     </li>
