@@ -1,32 +1,3 @@
-[tool.poetry]
-name = "twitch-drop-notifier"
-version = "0.1.0"
-description = ""
-authors = ["Joakim Hellsén <tlovinator@gmail.com>"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-django = "^5.0.6"
-whitenoise = { extras = ["brotli"], version = "^6.6.0" }
-sentry-sdk = { extras = ["django"], version = "^1.45.0" }
-psycopg = { extras = ["binary"], version = "^3.1.19" }
-redis = { extras = ["hiredis"], version = "^5.0.5" }
-playwright = "^1.44.0"
-selectolax = "^0.3.17"
-django-simple-history = "^3.7.0"
-pillow = "^10.3.0"
-python-dotenv = "^1.0.1"
-
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^3.7.1"
-djlint = "^1.34.1"
-
-[build-system]
-build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core"]
-
 [tool.ruff]
 # https://docs.astral.sh/ruff/settings/
 target-version = "py312"
@@ -59,7 +30,14 @@ lint.ignore = [
   "S101",    # asserts allowed in tests...
   "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
 ]
-
 "**/migrations/**" = [
   "RUF012", # Checks for mutable default values in class attributes.
 ]
+
+[tool.djlint]
+profile = "django"
+format_attribute_template_tags = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]

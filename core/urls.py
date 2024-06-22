@@ -1,7 +1,11 @@
-from django.contrib import admin
-from django.urls import include, path
+from __future__ import annotations
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("", include("twitch_drop_notifier.urls")),
+from django.urls import URLPattern, path
+
+from . import views
+
+app_name: str = "core"
+
+urlpatterns: list[URLPattern] = [
+    path(route="", view=views.index, name="index"),
 ]

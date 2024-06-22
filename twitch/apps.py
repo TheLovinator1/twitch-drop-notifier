@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class TwitchDropNotifierConfig(AppConfig):
+class TwitchConfig(AppConfig):
     default_auto_field: str = "django.db.models.BigAutoField"
-    name: str = "twitch_drop_notifier"
+    name: str = "twitch"

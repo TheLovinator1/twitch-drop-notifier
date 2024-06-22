@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <meta name="description" content="Twitch Drops">
+        <meta name="author" content="TheLovinator">
+        <meta name="keywords" content="Twitch, Drops, Twitch Drops">
+        <meta name="robots" content="index, follow">
+        <title>Twitch Drops</title>
+        <style>
+            header {
+                    display: flex;
+                    align-items: center;
+                    
+                    justify-content: space-between;
+                    
+                    padding: 10px 30px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Twitch Drops</h1>
+        {% for organization, org_data in orgs_data.items %}
+            <header>
+                <a href="{{ organization.url }}">
+                    <h2>{{ organization.name }}</h2>
+                </a>
+                <a href="">Subscribe to {{ organization.name }}</a>
+            </header>
+            <ul>
+                {% for game, game_data in org_data.games.items %}
+                    <li>
+                        <header>
+                            <a href="https://www.twitch.tv/directory/category/{{ game.slug }}">
+                                <h2>{{ game.display_name }}</h2>
+                            </a>
+                            <a href="{{ game.url }}">Subscribe to {{ game.display_name }}</a>
+                        </header>
+                        <ul>
+                            {% for drop_benefit in game_data.drop_benefits %}
+                                <dl>
+                                    <dt>
+                                        <header>
+                                            <a href="{{ drop_benefit.details_url }}">{{ drop_benefit.name }}</a>
+                                        </header>
+                                    </dt>
+                                    <dd>
+                                        <img src="{{ drop_benefit.image_asset_url }}"
+                                             alt="{{ drop_benefit.name }}"
+                                             height="100"
+                                             width="100">
+                                    </dd>
+                                    {% if drop_benefit.entitlement_limit > 1 %}
+                                        <dt>Entitlement Limit</dt>
+                                        <dd>
+                                            {{ drop_benefit.entitlement_limit|default:"N/A" }}
+                                        </dd>
+                                    {% endif %}
+                                    {% if drop_benefit.is_ios_available %}
+                                        <dt>iOS Available</dt>
+                                        <dd>
+                                            {{ drop_benefit.is_ios_available|yesno:"Yes,No" }}
+                                        </dd>
+                                    {% endif %}
+                                </dl>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </body>
+</html>

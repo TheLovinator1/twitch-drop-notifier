@@ -1,0 +1,12 @@
+django-simple-history
+django>=0.0.0.dev0
+pillow
+playwright
+psycopg[binary]
+python-dotenv
+redis[hiredis]
+selectolax
+sentry-sdk[django]
+whitenoise[brotli]
+platformdirs
+playwright

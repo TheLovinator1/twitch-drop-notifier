@@ -1,9 +1,14 @@
 {
     "cSpell.words": [
         "appendonly",
+        "asgiref",
+        "logdir",
+        "memlock",
+        "networkidle",
         "PGID",
         "PUID",
         "requirepass",
-        "ttvdrops"
+        "ttvdrops",
+        "ulimits"
     ]
 }

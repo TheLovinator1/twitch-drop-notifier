@@ -32,7 +32,7 @@ repos:
     rev: "1.18.0"
     hooks:
       - id: django-upgrade
-        args: [--target-version, "5.0"]
+        args: [--target-version, "5.1"]
 
   # Run Pyupgrade on all Python files. This will upgrade the code to Python 3.12.
   - repo: https://github.com/asottile/pyupgrade
@@ -43,7 +43,7 @@ repos:
 
   # An extremely fast Python linter and formatter.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.8
+    rev: v0.4.10
     hooks:
       - id: ruff-format
       - id: ruff
