@@ -1,9 +1,15 @@
 from django.db import models
+from django.db.models import Value
+from django.db.models.functions import (
+    Concat,
+)
 
 
 class Organization(models.Model):
     id = models.TextField(primary_key=True)
     name = models.TextField(blank=True, null=True)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -12,7 +18,14 @@ class Organization(models.Model):
 class Game(models.Model):
     id = models.TextField(primary_key=True)
     slug = models.TextField(blank=True, null=True)
+    twitch_url = models.GeneratedField(  # type: ignore  # noqa: PGH003
+        expression=Concat(Value("https://www.twitch.tv/directory/category/"), "slug"),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
     display_name = models.TextField(blank=True, null=True)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.display_name or self.slug or self.id
@@ -22,6 +35,8 @@ class Channel(models.Model):
     id = models.TextField(primary_key=True)
     display_name = models.TextField(blank=True, null=True)
     name = models.TextField(blank=True, null=True)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.display_name or self.name or self.id
@@ -36,6 +51,8 @@ class DropBenefit(models.Model):
     name = models.TextField(blank=True, null=True)
     owner_organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -49,6 +66,8 @@ class TimeBasedDrop(models.Model):
     required_minutes_watched = models.IntegerField(blank=True, null=True)
     start_at = models.DateTimeField(blank=True, null=True)
     benefits = models.ManyToManyField(DropBenefit)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -76,9 +95,8 @@ class DropCampaign(models.Model):
     )
     channels = models.ManyToManyField(Channel)
     time_based_drops = models.ManyToManyField(TimeBasedDrop)
-
-    class Meta:
-        verbose_name_plural = "Drop Campaigns"
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -87,6 +105,8 @@ class DropCampaign(models.Model):
 class User(models.Model):
     id = models.TextField(primary_key=True)
     drop_campaigns = models.ManyToManyField(DropCampaign)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.id

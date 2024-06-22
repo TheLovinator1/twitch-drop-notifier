@@ -10,3 +10,4 @@ sentry-sdk[django]
 whitenoise[brotli]
 platformdirs
 playwright
+django-ninja

@@ -93,13 +93,35 @@
             font-weight: 600;
             margin: 0;
         }
+        
+        /* Django messages framework */
+        .messages {
+                list-style-type: none;
+        }
+
+        /* Make error messages red and success messages green */
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+
         </style>
     </head>
     <body>
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li {% if message.tags %}class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         <h1 class="logo">Twitch Drops</h1>
         <div class="navbar">
-            <a href="">API</a> |
-            <a href="https://github.com/sponsors/TheLovinator1">Donate</a>
+            <a href='{% url "api-1.0.0:openapi-view" %}'>API</a> |
+            <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
+            TheLovinator#9276
         </div>
         {% for organization, org_data in orgs_data.items %}
             <ul>

@@ -1,7 +1,8 @@
 import asyncio
+import logging
 import typing
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 from django.core.management.base import BaseCommand
@@ -22,6 +23,7 @@ from twitch.models import (
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
 
+# Where to store the Firefox profile
 data_dir = Path(
     user_data_dir(
         appname="TTVDrops",
@@ -35,6 +37,8 @@ if not data_dir:
     msg = "DATA_DIR is not set in settings.py"
     raise ValueError(msg)
 
+logger: logging.Logger = logging.getLogger("twitch.management.commands.scrape_twitch")
+
 
 async def insert_data(data: dict) -> None:  # noqa: PLR0914
     """Insert data into the database.
@@ -44,32 +48,39 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
     """
     user_data: dict = data.get("data", {}).get("user")
     if not user_data:
+        logger.debug("No user data found")
         return
 
     user_id = user_data["id"]
     drop_campaign_data = user_data["dropCampaign"]
     if not drop_campaign_data:
+        logger.debug("No drop campaign data found")
         return
+
+    logger.info("Inserting data for user ID: %s", user_id)
 
     # Create or get the organization
     owner_data = drop_campaign_data["owner"]
-    owner, _ = await sync_to_async(Organization.objects.get_or_create)(
+    owner, created = await sync_to_async(Organization.objects.get_or_create)(
         id=owner_data["id"],
         defaults={"name": owner_data["name"]},
     )
 
+    logger.debug("Organization %s: %s", "created" if created else "retrieved", owner)
+
     # Create or get the game
     game_data = drop_campaign_data["game"]
-    game, _ = await sync_to_async(Game.objects.get_or_create)(
+    game, created = await sync_to_async(Game.objects.get_or_create)(
         id=game_data["id"],
         defaults={
             "slug": game_data["slug"],
             "display_name": game_data["displayName"],
         },
     )
+    logger.debug("Game %s: %s", "created" if created else "retrieved", game)
 
     # Create the drop campaign
-    drop_campaign, _ = await sync_to_async(DropCampaign.objects.get_or_create)(
+    drop_campaign, created = await sync_to_async(DropCampaign.objects.get_or_create)(
         id=drop_campaign_data["id"],
         defaults={
             "account_link_url": drop_campaign_data["accountLinkURL"],
@@ -84,15 +95,23 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
             "owner": owner,
         },
     )
+    logger.debug(
+        "Drop campaign %s: %s",
+        "created" if created else "retrieved",
+        drop_campaign,
+    )
+
     if not drop_campaign_data["allow"]:
+        logger.debug("No allowed data in drop campaign")
         return
 
     if not drop_campaign_data["allow"]["channels"]:
+        logger.debug("No allowed channels in drop campaign")
         return
 
     # Create channels
     for channel_data in drop_campaign_data["allow"]["channels"]:
-        channel, _ = await sync_to_async(Channel.objects.get_or_create)(
+        channel, created = await sync_to_async(Channel.objects.get_or_create)(
             id=channel_data["id"],
             defaults={
                 "display_name": channel_data["displayName"],
@@ -100,6 +119,7 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
             },
         )
         await sync_to_async(drop_campaign.channels.add)(channel)
+        logger.debug("Channel %s: %s", "created" if created else "retrieved", channel)
 
     # Create time-based drops
     for drop_data in drop_campaign_data["timeBasedDrops"]:
@@ -110,18 +130,29 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
             benefit_data = edge["benefit"]
             benefit_owner_data = benefit_data["ownerOrganization"]
 
-            benefit_owner, _ = await sync_to_async(Organization.objects.get_or_create)(
+            benefit_owner, created = await sync_to_async(
+                Organization.objects.get_or_create,
+            )(
                 id=benefit_owner_data["id"],
                 defaults={"name": benefit_owner_data["name"]},
             )
-
+            logger.debug(
+                "Benefit owner %s: %s",
+                "created" if created else "retrieved",
+                benefit_owner,
+            )
             benefit_game_data = benefit_data["game"]
-            benefit_game, _ = await sync_to_async(Game.objects.get_or_create)(
+            benefit_game, created = await sync_to_async(Game.objects.get_or_create)(
                 id=benefit_game_data["id"],
                 defaults={"name": benefit_game_data["name"]},
             )
+            logger.debug(
+                "Benefit game %s: %s",
+                "created" if created else "retrieved",
+                benefit_game,
+            )
 
-            benefit, _ = await sync_to_async(DropBenefit.objects.get_or_create)(
+            benefit, created = await sync_to_async(DropBenefit.objects.get_or_create)(
                 id=benefit_data["id"],
                 defaults={
                     "created_at": benefit_data["createdAt"],
@@ -134,8 +165,15 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
                 },
             )
             drop_benefits.append(benefit)
+            logger.debug(
+                "Benefit %s: %s",
+                "created" if created else "retrieved",
+                benefit,
+            )
 
-        time_based_drop, _ = await sync_to_async(TimeBasedDrop.objects.get_or_create)(
+        time_based_drop, created = await sync_to_async(
+            TimeBasedDrop.objects.get_or_create,
+        )(
             id=drop_data["id"],
             defaults={
                 "required_subs": drop_data["requiredSubs"],
@@ -147,23 +185,41 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
         )
         await sync_to_async(time_based_drop.benefits.set)(drop_benefits)
         await sync_to_async(drop_campaign.time_based_drops.add)(time_based_drop)
+        logger.debug(
+            "Time-based drop %s: %s",
+            "created" if created else "retrieved",
+            time_based_drop,
+        )
 
     # Create or get the user
-    user, _ = await sync_to_async(User.objects.get_or_create)(id=user_id)
+    user, created = await sync_to_async(User.objects.get_or_create)(id=user_id)
     await sync_to_async(user.drop_campaigns.add)(drop_campaign)
+    logger.debug(
+        "User %s: %s",
+        "created" if created else "retrieved",
+        user,
+    )
 
 
 class Command(BaseCommand):
     help = "Scrape Twitch Drops Campaigns with login using Firefox"
 
-    async def run(self, playwright: Playwright) -> list[Any]:
+    async def run(  # noqa: PLR6301
+        self,
+        playwright: Playwright,
+    ) -> list[dict[str, typing.Any]]:
         profile_dir: Path = Path(data_dir / "firefox-profile")
         profile_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(
+            "Launching Firefox browser with user data directory: %s",
+            profile_dir,
+        )
 
         browser: BrowserContext = await playwright.firefox.launch_persistent_context(
             user_data_dir=profile_dir,
             headless=True,
         )
+        logger.debug("Launched Firefox browser")
 
         page: Page = await browser.new_page()
         json_data: list[dict] = []
@@ -173,11 +229,19 @@ class Command(BaseCommand):
                 try:
                     body: typing.Any = await response.json()
                     json_data.extend(body)
-                except Exception:  # noqa: BLE001
-                    self.stdout.write(f"Failed to parse JSON from {response.url}")
+                    logger.debug(
+                        "Received JSON data from %s",
+                        response.url,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to parse JSON from %s",
+                        response.url,
+                    )
 
         page.on("response", handle_response)
         await page.goto("https://www.twitch.tv/drops/campaigns")
+        logger.debug("Navigated to Twitch drops campaigns page")
 
         logged_in = False
         while not logged_in:
@@ -187,14 +251,16 @@ class Command(BaseCommand):
                     timeout=30000,
                 )
                 logged_in = True
-                self.stdout.write("Logged in")
+                logger.info("Logged in to Twitch")
             except KeyboardInterrupt as e:
                 raise KeyboardInterrupt from e
             except Exception:  # noqa: BLE001
                 await asyncio.sleep(5)
-                self.stdout.write("Waiting for login")
+                logger.info("Waiting for login")
 
         await page.wait_for_load_state("networkidle")
+        logger.debug("Page is idle")
+
         await browser.close()
 
         for campaign in json_data:

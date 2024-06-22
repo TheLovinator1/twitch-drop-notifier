@@ -2,14 +2,15 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.migrations.operations.base import Operation
 
 
 class Migration(migrations.Migration):
-    dependencies = [
+    dependencies: list[tuple[str, str]] = [
         ("twitch", "0001_initial"),
     ]
 
-    operations = [
+    operations: list[Operation] = [
         migrations.AlterModelOptions(
             name="dropcampaign",
             options={"verbose_name_plural": "Drop Campaigns"},
