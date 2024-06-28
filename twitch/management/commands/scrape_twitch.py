@@ -40,7 +40,7 @@ if not data_dir:
 logger: logging.Logger = logging.getLogger("twitch.management.commands.scrape_twitch")
 
 
-async def insert_data(data: dict) -> None:  # noqa: PLR0914
+async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901, PLR0912
     """Insert data into the database.
 
     Args:
@@ -54,10 +54,7 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
     user_id = user_data["id"]
     drop_campaign_data = user_data["dropCampaign"]
     if not drop_campaign_data:
-        logger.debug("No drop campaign data found")
         return
-
-    logger.info("Inserting data for user ID: %s", user_id)
 
     # Create or get the organization
     owner_data = drop_campaign_data["owner"]
@@ -65,8 +62,8 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
         id=owner_data["id"],
         defaults={"name": owner_data["name"]},
     )
-
-    logger.debug("Organization %s: %s", "created" if created else "retrieved", owner)
+    if created:
+        logger.debug("Organization created: %s", owner)
 
     # Create or get the game
     game_data = drop_campaign_data["game"]
@@ -77,7 +74,8 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
             "display_name": game_data["displayName"],
         },
     )
-    logger.debug("Game %s: %s", "created" if created else "retrieved", game)
+    if created:
+        logger.debug("Game created: %s", game)
 
     # Create the drop campaign
     drop_campaign, created = await sync_to_async(DropCampaign.objects.get_or_create)(
@@ -95,31 +93,22 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
             "owner": owner,
         },
     )
-    logger.debug(
-        "Drop campaign %s: %s",
-        "created" if created else "retrieved",
-        drop_campaign,
-    )
-
-    if not drop_campaign_data["allow"]:
-        logger.debug("No allowed data in drop campaign")
-        return
-
-    if not drop_campaign_data["allow"]["channels"]:
-        logger.debug("No allowed channels in drop campaign")
-        return
+    if created:
+        logger.debug("Drop campaign created: %s", drop_campaign)
 
     # Create channels
-    for channel_data in drop_campaign_data["allow"]["channels"]:
-        channel, created = await sync_to_async(Channel.objects.get_or_create)(
-            id=channel_data["id"],
-            defaults={
-                "display_name": channel_data["displayName"],
-                "name": channel_data["name"],
-            },
-        )
-        await sync_to_async(drop_campaign.channels.add)(channel)
-        logger.debug("Channel %s: %s", "created" if created else "retrieved", channel)
+    if drop_campaign_data["allow"] and drop_campaign_data["allow"]["channels"]:
+        for channel_data in drop_campaign_data["allow"]["channels"]:
+            channel, created = await sync_to_async(Channel.objects.get_or_create)(
+                id=channel_data["id"],
+                defaults={
+                    "display_name": channel_data["displayName"],
+                    "name": channel_data["name"],
+                },
+            )
+            await sync_to_async(drop_campaign.channels.add)(channel)
+            if created:
+                logger.debug("Channel created: %s", channel)
 
     # Create time-based drops
     for drop_data in drop_campaign_data["timeBasedDrops"]:
@@ -136,21 +125,16 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
                 id=benefit_owner_data["id"],
                 defaults={"name": benefit_owner_data["name"]},
             )
-            logger.debug(
-                "Benefit owner %s: %s",
-                "created" if created else "retrieved",
-                benefit_owner,
-            )
+            if created:
+                logger.debug("Benefit owner created: %s", benefit_owner)
+
             benefit_game_data = benefit_data["game"]
             benefit_game, created = await sync_to_async(Game.objects.get_or_create)(
                 id=benefit_game_data["id"],
                 defaults={"name": benefit_game_data["name"]},
             )
-            logger.debug(
-                "Benefit game %s: %s",
-                "created" if created else "retrieved",
-                benefit_game,
-            )
+            if created:
+                logger.debug("Benefit game created: %s", benefit_game)
 
             benefit, created = await sync_to_async(DropBenefit.objects.get_or_create)(
                 id=benefit_data["id"],
@@ -165,11 +149,8 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
                 },
             )
             drop_benefits.append(benefit)
-            logger.debug(
-                "Benefit %s: %s",
-                "created" if created else "retrieved",
-                benefit,
-            )
+            if created:
+                logger.debug("Benefit created: %s", benefit)
 
         time_based_drop, created = await sync_to_async(
             TimeBasedDrop.objects.get_or_create,
@@ -185,20 +166,15 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
         )
         await sync_to_async(time_based_drop.benefits.set)(drop_benefits)
         await sync_to_async(drop_campaign.time_based_drops.add)(time_based_drop)
-        logger.debug(
-            "Time-based drop %s: %s",
-            "created" if created else "retrieved",
-            time_based_drop,
-        )
+
+        if created:
+            logger.debug("Time-based drop created: %s", time_based_drop)
 
     # Create or get the user
     user, created = await sync_to_async(User.objects.get_or_create)(id=user_id)
     await sync_to_async(user.drop_campaigns.add)(drop_campaign)
-    logger.debug(
-        "User %s: %s",
-        "created" if created else "retrieved",
-        user,
-    )
+    if created:
+        logger.debug("User created: %s", user)
 
 
 class Command(BaseCommand):
@@ -229,10 +205,6 @@ class Command(BaseCommand):
                 try:
                     body: typing.Any = await response.json()
                     json_data.extend(body)
-                    logger.debug(
-                        "Received JSON data from %s",
-                        response.url,
-                    )
                 except Exception:
                     logger.exception(
                         "Failed to parse JSON from %s",
@@ -259,11 +231,12 @@ class Command(BaseCommand):
                 logger.info("Waiting for login")
 
         await page.wait_for_load_state("networkidle")
-        logger.debug("Page is idle")
+        logger.debug("Page loaded. Scraping data...")
 
         await browser.close()
 
-        for campaign in json_data:
+        for num, campaign in enumerate(json_data, start=1):
+            logger.info("Processing JSON %d of %d", num, len(json_data))
             if not isinstance(campaign, dict):
                 continue
 
