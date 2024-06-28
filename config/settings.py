@@ -59,6 +59,7 @@ DEFAULT_FROM_EMAIL: str = os.getenv(
     default="webmaster@localhost",
 )
 SERVER_EMAIL: str = os.getenv(key="EMAIL_HOST_USER", default="webmaster@localhost")
+DISCORD_WEBHOOK_URL: str = os.getenv(key="DISCORD_WEBHOOK_URL", default="")
 
 INSTALLED_APPS: list[str] = [
     "core.apps.CoreConfig",

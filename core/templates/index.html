@@ -131,7 +131,18 @@
                             <h2>
                                 <a href="https://www.twitch.tv/directory/category/{{ game.slug }}">{{ game.display_name }}</a>
                             </h2>
-                            <button>Subscribe to {{ game.display_name }}</button>
+                            <form action="" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="game_id" value="{{ game.id }}">
+                                <button type="submit">Subscribe to {{ game.display_name }}</button>
+                            </form>
+                            <form action='{% url "core:test" %}' method="post">
+                                {% csrf_token %}
+                                <input type="hidden"
+                                       name="org_id"
+                                       value="{{ org_data.drop_campaigns.0.pk }}">
+                                <button type="submit">Test</button>
+                            </form>
                         </header>
                         <ul>
                             {% for drop_benefit in game_data.drop_benefits %}

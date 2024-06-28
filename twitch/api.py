@@ -72,6 +72,15 @@ class DropCampaignSchema(Schema):
     account_link_url: str | None = None
     description: str | None = None
     details_url: str | None = None
+    end_at: datetime.datetime | None = None
+    image_url: str | None = None
+    name: str | None = None
+    start_at: datetime.datetime | None = None
+    status: str | None = None
+    game: GameSchema | None = None
+    owner: OrganizationSchema | None = None
+    channels: list[ChannelSchema] | None = None
+    time_based_drops: list[TimeBasedDropSchema] | None = None
     added_at: datetime.datetime | None = None
     modified_at: datetime.datetime | None = None
 

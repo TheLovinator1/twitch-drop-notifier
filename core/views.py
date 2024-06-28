@@ -1,8 +1,11 @@
+import logging
 from typing import TYPE_CHECKING
 
+from django.db.models.manager import BaseManager
 from django.http import HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
 
+from core.discord import send
 from twitch.models import (
     DropBenefit,
     DropCampaign,
@@ -13,6 +16,9 @@ from twitch.models import (
 
 if TYPE_CHECKING:
     from django.db.models.manager import BaseManager
+from django.views.decorators.http import require_POST
+
+logger = logging.getLogger(__name__)
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -48,7 +54,7 @@ def index(request: HttpRequest) -> HttpResponse:
         for benefit in drop_benefits:
             orgs_data[org]["games"][benefit.game]["drop_benefits"].append(benefit)
 
-        time_based_drops = TimeBasedDrop.objects.filter(
+        time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(
             benefits__in=drop_benefits,
         ).distinct()
         for drop in time_based_drops:
@@ -58,7 +64,9 @@ def index(request: HttpRequest) -> HttpResponse:
                         drop,
                     )
 
-        drop_campaigns = DropCampaign.objects.filter(owner=org)
+        drop_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(
+            owner=org,
+        )
         for campaign in drop_campaigns:
             orgs_data[org]["drop_campaigns"].append(campaign)
 
@@ -67,3 +75,36 @@ def index(request: HttpRequest) -> HttpResponse:
         template="index.html",
         context={"orgs_data": orgs_data},
     )
+
+
+@require_POST
+def test_webhook(
+    request: HttpRequest,
+    *args,  # noqa: ANN002, ARG001
+    **kwargs,  # noqa: ARG001, ANN003
+) -> HttpResponse:
+    """Test webhook.
+
+    Args:
+        request: The request.
+        args: Additional arguments.
+        kwargs: Additional keyword arguments.
+
+    Returns:
+        HttpResponse: Returns a response.
+    """
+    org_id: str | None = request.POST.get("org_id")
+    if not org_id:
+        return HttpResponse(status=400)
+
+    campaign: DropCampaign = DropCampaign.objects.get(id=org_id)
+
+    msg: str = f"""
+Found new drop for {campaign.game.display_name}:\n
+{campaign.name}\n
+{campaign.description}\n
+<{campaign.details_url}>
+"""
+    send(msg.strip())
+
+    return HttpResponse(status=200)

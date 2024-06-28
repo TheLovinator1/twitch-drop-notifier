@@ -11,3 +11,4 @@ whitenoise[brotli]
 platformdirs
 playwright
 django-ninja
+discord-webhook
