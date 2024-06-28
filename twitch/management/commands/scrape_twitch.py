@@ -204,7 +204,7 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914
 class Command(BaseCommand):
     help = "Scrape Twitch Drops Campaigns with login using Firefox"
 
-    async def run(  # noqa: PLR6301
+    async def run(  # noqa: PLR6301, C901
         self,
         playwright: Playwright,
     ) -> list[dict[str, typing.Any]]:
@@ -268,6 +268,9 @@ class Command(BaseCommand):
                 continue
 
             if "dropCampaign" in campaign.get("data", {}).get("user", {}):
+                await insert_data(campaign)
+
+            if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
                 await insert_data(campaign)
 
         return json_data
