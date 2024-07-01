@@ -1,8 +1,11 @@
+from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.db import models
 from django.db.models import Value
 from django.db.models.functions import (
     Concat,
 )
+from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 
 class Organization(models.Model):
@@ -10,6 +13,11 @@ class Organization(models.Model):
     name = models.TextField(blank=True, null=True)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
+
+    class Meta:
+        verbose_name = "Organization"
+        verbose_name_plural = "Organizations"
+        ordering = ("name",)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -35,6 +43,12 @@ class Game(models.Model):
     display_name = models.TextField(blank=True, null=True)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Game"
+        verbose_name_plural = "Games"
+        ordering = ("display_name",)
 
     def __str__(self) -> str:
         return self.display_name or self.slug or self.id
@@ -51,9 +65,15 @@ class DropBenefit(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Drop Benefit"
+        verbose_name_plural = "Drop Benefits"
+        ordering = ("name",)
 
     def __str__(self) -> str:
-        return self.name or self.id
+        return f"{self.owner_organization.name} - {self.game.display_name} - {self.name}"
 
 
 class TimeBasedDrop(models.Model):
@@ -66,9 +86,19 @@ class TimeBasedDrop(models.Model):
     benefits = models.ManyToManyField(DropBenefit)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Time-Based Drop"
+        verbose_name_plural = "Time-Based Drops"
+        ordering = ("name",)
 
     def __str__(self) -> str:
-        return self.name or self.id
+        if self.end_at:
+            if self.end_at < timezone.now():
+                return f"{self.benefits.first()} - {self.name} - Ended {naturaltime(self.end_at)}"
+            return f"{self.benefits.first()} - {self.name} - Ends in {naturaltime(self.end_at)}"
+        return f"{self.benefits.first()} - {self.name}"
 
 
 class DropCampaign(models.Model):
@@ -94,16 +124,12 @@ class DropCampaign(models.Model):
     time_based_drops = models.ManyToManyField(TimeBasedDrop)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Drop Campaign"
+        verbose_name_plural = "Drop Campaigns"
+        ordering = ("name",)
 
     def __str__(self) -> str:
-        return self.name or self.id
-
-
-class User(models.Model):
-    id = models.TextField(primary_key=True)
-    drop_campaigns = models.ManyToManyField(DropCampaign)
-    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
-    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
-
-    def __str__(self) -> str:
-        return self.id
+        return f"{self.owner.name} - {self.game.display_name} - {self.name}"

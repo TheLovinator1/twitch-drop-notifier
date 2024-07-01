@@ -16,7 +16,6 @@ from twitch_app.models import (
     Game,
     Organization,
     TimeBasedDrop,
-    User,
 )
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901
         logger.debug("No user data found")
         return
 
-    user_id = user_data["id"]
+    user_data["id"]
     drop_campaign_data = user_data["dropCampaign"]
     if not drop_campaign_data:
         return
@@ -154,12 +153,6 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901
 
         if created:
             logger.debug("Time-based drop created: %s", time_based_drop)
-
-    # Create or get the user
-    user, created = await sync_to_async(User.objects.get_or_create)(id=user_id)
-    await sync_to_async(user.drop_campaigns.add)(drop_campaign)
-    if created:
-        logger.debug("User created: %s", user)
 
 
 class Command(BaseCommand):

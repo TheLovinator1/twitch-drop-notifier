@@ -9,8 +9,5 @@ playwright
 playwright
 psycopg[binary]
 python-dotenv
-redis[hiredis]
-selectolax
 sentry-sdk[django]
-twitchAPI
 whitenoise[brotli]
