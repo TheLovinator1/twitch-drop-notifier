@@ -10,15 +10,18 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def send(message: str) -> None:
+def send(message: str, webhook_url: str | None = None) -> None:
     """Send a message to Discord.
 
     Args:
         message: The message to send.
+        webhook_url: The webhook URL to send the message to.
     """
-    webhook_url = str(settings.DISCORD_WEBHOOK_URL)
+    logger.info("Discord message: %s", message)
+
+    webhook_url = webhook_url or str(settings.DISCORD_WEBHOOK_URL)
     if not webhook_url:
-        logger.error("No Discord webhook URL found.")
+        logger.error("No webhook URL provided.")
         return
 
     webhook = DiscordWebhook(

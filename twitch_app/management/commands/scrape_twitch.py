@@ -10,8 +10,7 @@ from platformdirs import user_data_dir
 from playwright.async_api import Playwright, async_playwright
 from playwright.async_api._generated import Response
 
-from twitch.models import (
-    Channel,
+from twitch_app.models import (
     DropBenefit,
     DropCampaign,
     Game,
@@ -40,7 +39,7 @@ if not data_dir:
 logger: logging.Logger = logging.getLogger("twitch.management.commands.scrape_twitch")
 
 
-async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901, PLR0912
+async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901
     """Insert data into the database.
 
     Args:
@@ -95,20 +94,6 @@ async def insert_data(data: dict) -> None:  # noqa: PLR0914, C901, PLR0912
     )
     if created:
         logger.debug("Drop campaign created: %s", drop_campaign)
-
-    # Create channels
-    if drop_campaign_data["allow"] and drop_campaign_data["allow"]["channels"]:
-        for channel_data in drop_campaign_data["allow"]["channels"]:
-            channel, created = await sync_to_async(Channel.objects.get_or_create)(
-                id=channel_data["id"],
-                defaults={
-                    "display_name": channel_data["displayName"],
-                    "name": channel_data["name"],
-                },
-            )
-            await sync_to_async(drop_campaign.channels.add)(channel)
-            if created:
-                logger.debug("Channel created: %s", channel)
 
     # Create time-based drops
     for drop_data in drop_campaign_data["timeBasedDrops"]:

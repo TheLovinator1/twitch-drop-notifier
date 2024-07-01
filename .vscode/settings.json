@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "allauth",
         "appendonly",
         "asgiref",
         "logdir",
@@ -8,6 +9,7 @@
         "PGID",
         "PUID",
         "requirepass",
+        "socialaccount",
         "ttvdrops",
         "ulimits"
     ]

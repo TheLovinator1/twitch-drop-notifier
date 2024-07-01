@@ -5,7 +5,6 @@ from django.http import HttpRequest
 from ninja import Router, Schema
 
 from .models import (
-    Channel,
     DropBenefit,
     DropCampaign,
     Game,
@@ -92,13 +91,6 @@ def get_organizations(
 ) -> BaseManager[Organization]:
     """Get all organizations."""
     return Organization.objects.all()
-
-
-# http://localhost:8000/api/twitch/channels
-@router.get("/channels", response=list[ChannelSchema])
-def get_channels(request: HttpRequest) -> BaseManager[Channel]:  # noqa: ARG001
-    """Get all channels."""
-    return Channel.objects.all()
 
 
 # http://localhost:8000/api/twitch/games

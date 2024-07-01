@@ -23,23 +23,21 @@ class Game(models.Model):
         output_field=models.TextField(),
         db_persist=True,
     )
+    image_url = models.GeneratedField(  # type: ignore  # noqa: PGH003
+        expression=Concat(
+            Value("https://static-cdn.jtvnw.net/ttv-boxart/"),
+            "id",
+            Value("_IGDB.jpg"),
+        ),
+        output_field=models.URLField(),
+        db_persist=True,
+    )
     display_name = models.TextField(blank=True, null=True)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     def __str__(self) -> str:
         return self.display_name or self.slug or self.id
-
-
-class Channel(models.Model):
-    id = models.TextField(primary_key=True)
-    display_name = models.TextField(blank=True, null=True)
-    name = models.TextField(blank=True, null=True)
-    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
-    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
-
-    def __str__(self) -> str:
-        return self.display_name or self.name or self.id
 
 
 class DropBenefit(models.Model):
@@ -93,7 +91,6 @@ class DropCampaign(models.Model):
         on_delete=models.CASCADE,
         related_name="drop_campaigns",
     )
-    channels = models.ManyToManyField(Channel)
     time_based_drops = models.ManyToManyField(TimeBasedDrop)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
