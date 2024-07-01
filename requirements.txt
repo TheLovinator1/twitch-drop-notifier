@@ -1,5 +1,6 @@
 discord-webhook
 django-allauth[socialaccount]
+django-auto-prefetch
 django-ninja
 django-simple-history
 django>=0.0.0.dev0
