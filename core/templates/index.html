@@ -9,8 +9,8 @@
                             <img src="{{ game.image_url }}"
                                  alt="{{ game.display_name }}"
                                  class="img-fluid rounded-start"
-                                 height="100"
-                                 width="100"
+                                 height="150"
+                                 width="150"
                                  loading="lazy">
                         </div>
                         <div class="col-md-4">
@@ -21,47 +21,39 @@
                                 </h2>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            {% if discord_settings %}
-                                <div class="card-body">
-                                    <form action='{% url "core:subscription_create" %}'
-                                          method="post"
-                                          class="mb-2">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="game_id" value="{{ game.id }}">
-                                        <select name="discord_webhook" class="form-select">
-                                            {% for discord_setting in discord_settings %}
-                                                <option value="{{ discord_setting.id }}">{{ discord_setting.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <div>
-                                            <a href="#" class="card-link mt-2">Notify when new drop are found</a>
-                                        </div>
-                                        <div>
-                                            <a href="#" class="card-link mt-2">Notify when the drop is live</a>
-                                        </div>
-                                    </form>
+                    </div>
+                    <div class="card-body card-bottom">
+                        {% if discord_settings %}
+                            <div class="card-body">
+                                <div>Available on iOS: {{ game_data.ios_available|yesno:"Yes,No" }}</div>
+                            </div>
+                        {% else %}
+                            <div class="card-body text-end">
+                                <a href="{% url 'core:add_discord_webhook' %}" class="card-link">Add Discord settings</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body card-bottom">
+                        <div class="row">
+                            {% for drop_benefit in game_data.drop_benefits %}
+                                <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
+                                    <img src="{{ drop_benefit.image_asset_url }}"
+                                         alt="{{ drop_benefit.name }}"
+                                         class="img-fluid rounded me-3"
+                                         height="50"
+                                         width="50"
+                                         loading="lazy">
+                                    {# Only show the entitlement limit if it's not None or above 1 #}
+                                    {% if drop_benefit.entitlement_limit > 1 %}
+                                        <span class="badge bg-primary position-absolute top-100 start-20 translate-middle">{{ drop_benefit.entitlement_limit }}
+                                            <span class="visually-hidden">limit per account</span>
+                                        </span>
+                                    {% endif %}
+                                    {{ drop_benefit.name }}
                                 </div>
-                            {% else %}
-                                <div class="card-body text-end">
-                                    <a href="{% url 'core:add_discord_webhook' %}" class="card-link">Add Discord settings</a>
-                                </div>
-                            {% endif %}
+                            {% endfor %}
                         </div>
                     </div>
-                    <ul class="list-group list-group-flush">
-                        {% for drop_benefit in game_data.drop_benefits %}
-                            <li class="list-group-item d-flex align-items-center">
-                                <img src="{{ drop_benefit.image_asset_url }}"
-                                     alt="{{ drop_benefit.name }}"
-                                     class="img-fluid rounded me-3"
-                                     height="50"
-                                     width="50"
-                                     loading="lazy">
-                                <a href="{{ drop_benefit.details_url }}" class="text-decoration-none">{{ drop_benefit.name }}</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
                 </div>
             {% endfor %}
         </div>

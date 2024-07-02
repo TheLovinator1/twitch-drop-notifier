@@ -28,14 +28,14 @@
         <article class="container mt-5">
             <header class="d-flex justify-content-between align-items-center py-3 border-bottom">
                 <h1 class="h2">
-                    <a href='{% url "core:index" %}' class="text-decoration-none">Twitch drops</a>
+                    <a href='{% url "core:index" %}' class="text-decoration-none nav-title">Twitch drops</a>
                 </h1>
                 <nav>
                     <ul class="nav">
                         <li class="nav-item">
                             <a class="nav-link" href='{% url "api-1.0.0:openapi-view" %}'>API</a>
                         </li>
-                        <li class="nav-item">
+                        <li class="nav-item d-none d-sm-block">
                             <a class="nav-link" href="https://github.com/sponsors/TheLovinator1">Donate</a>
                         </li>
                         <li>
@@ -54,6 +54,7 @@
                 </nav>
             </header>
             {% block content %}
+                <p>Content goes here</p>
             {% endblock content %}
         </article>
         <script src="{% static 'js/bootstrap.min.js' %}"></script>

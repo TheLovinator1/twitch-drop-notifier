@@ -1,8 +1,10 @@
+/* Make background color darker and text white */
 body {
     background-color: #0c0c0c;
     color: #ffffff;
 }
 
+/* Make links white */
 a {
     color: #ffffff;
 }
@@ -19,43 +21,37 @@ a:hover {
     color: #e91e63;
 }
 
+/* Make the logo text pink */
+.nav-title {
+    color: #e91e63;
+}
+
+/* Top half of the card */
 .card {
     background-color: #111111;
-    border: 1px solid #111111;
+    border: 1px solid #000000;
 }
 
-.card-title a {
-    color: #ffffff;
-}
 
-.card-title a:hover {
-    color: #e91e63;
-}
-
-.alert {
-    background-color: #333333;
-    border-color: #444444;
-}
-
-.list-group-item {
+/* Bottom half of the card */
+.card-bottom {
     background-color: #141414;
-    border: 1px solid #141414;
-}
-
-.list-group-item a {
-    color: #ffffff;
-}
-
-.list-group-item a:hover {
-    color: #e91e63;
+    border-top: 1px solid #000000;
 }
 
 .btn-primary {
-    background-color: #06172e;
-    border-color: #000c1d;
+    background-color: #e91e63;
+    border-color: #111111;
 }
 
 .btn-primary:hover {
-    background-color: #040e1d;
-    border-color: #000c1d;
+    background-color: #af1548;
+    border-color: #111111;
+}
+
+/* Django alerts */
+/* https://docs.djangoproject.com/en/5.0/ref/contrib/messages/ */
+.alert {
+    background-color: #181818;
+    border-color: #444444;
 }
