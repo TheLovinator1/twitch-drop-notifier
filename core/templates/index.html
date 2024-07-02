@@ -1,175 +1,69 @@
-{% load socialaccount %}
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="ie=edge">
-        <meta name="description" content="Twitch Drops">
-        <meta name="author" content="TheLovinator">
-        <meta name="keywords" content="Twitch, Drops, Twitch Drops">
-        <meta name="robots" content="index, follow">
-        <title>Twitch Drops</title>
-        <style>
-        :root {
-            --background-color: #121212;
-            --text-color: #e0e0e0;
-            --header-background: #1e1e1e;
-            --border-color: #333;
-            --button-background: #6441a5;
-            --button-hover-background: #503682;
-            --button-shadow: rgba(0, 0, 0, 0.2);
-            --button-padding: 0.5rem 1rem;
-            --button-margin: 0.5rem 0;
-            --button-radius: 0.5rem;
-            --button-font-size: 0.875rem;
-        }
-
-        html {
-            max-width: 88ch;
-            padding: calc(1vmin + 0.5rem);
-            margin-inline: auto;
-            font-size: clamp(1em, 0.909em + 0.45vmin, 1.25em);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        header {
-            padding: 10px 30px;
-            background: var(--header-background);
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .game {
-            margin-bottom: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        img {
-            margin: 10px;
-        }
-
-        button {
-            background-color: var(--button-background);
-            color: white;
-            border: none;
-            padding: var(--button-padding);
-            margin: var(--button-margin);
-            border-radius: var(--button-radius);
-            cursor: pointer;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-            font-size: var(--button-font-size);
-            box-shadow: 0 2px 4px var(--button-shadow);
-        }
-
-        button:hover {
-            background-color: var(--button-hover-background);
-            box-shadow: 0 3px 6px var(--button-shadow);
-        }
-
-        .navbar {
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        .logo {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .messages {
-            list-style-type: none;
-        }
-
-        .error {
-            color: red;
-        }
-        .success {
-            color: green;
-        }
-
-        </style>
-    </head>
-    <body>
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li {% if message.tags %}class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        <h1 class="logo">Twitch Drops</h1>
-        <div class="navbar">
-            <a href='{% url "api-1.0.0:openapi-view" %}'>API</a> |
-            <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
-            TheLovinator#9276 |
-            {% if user.is_authenticated %}
-                <a href='{% url "account_logout" %}'>Logout</a>
-            {% else %}
-                <a href='{% provider_login_url "twitch" %}'>Login</a>
-            {% endif %}
-        </div>
-        {% for organization, org_data in orgs_data.items %}
-            <ul>
-                {% for game, game_data in org_data.games.items %}
-                    <li class="game">
-                        <header>
+{% extends "base.html" %}
+{% block content %}
+    {% for organization, org_data in orgs_data.items %}
+        <div class="container mt-4">
+            {% for game, game_data in org_data.games.items %}
+                <div class="card mb-4">
+                    <div class="row g-0">
+                        <div class="col-md-2">
                             <img src="{{ game.image_url }}"
                                  alt="{{ game.display_name }}"
+                                 class="img-fluid rounded-start"
                                  height="100"
                                  width="100"
                                  loading="lazy">
-                            <h2>
-                                <a href="https://www.twitch.tv/directory/category/{{ game.slug }}">{{ game.display_name }}</a>
-                            </h2>
-                            <form action='{% url "core:subscription_create" %}' method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="game_id" value="{{ game.id }}">
-                                <select name="discord_webhook">
-                                    {% for discord_setting in discord_settings %}
-                                        <option value="{{ discord_setting.id }}">{{ discord_setting.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit">Subscribe to {{ game.display_name }}</button>
-                            </form>
-                            <form action='{% url "core:test" %}' method="post">
-                                {% csrf_token %}
-                                <input type="hidden"
-                                       name="org_id"
-                                       value="{{ org_data.drop_campaigns.0.pk }}">
-                                <button type="submit">Test</button>
-                            </form>
-                        </header>
-                        <ul>
-                            {% for drop_benefit in game_data.drop_benefits %}
-                                <li>
-                                    <img src="{{ drop_benefit.image_asset_url }}"
-                                         alt="{{ drop_benefit.name }}"
-                                         height="100"
-                                         width="100"
-                                         loading="lazy">
-                                    <a href="{{ drop_benefit.details_url }}">{{ drop_benefit.name }}</a>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endfor %}
-    </body>
-</html>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card-body">
+                                <h2 class="card-title h5">
+                                    <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
+                                       class="text-decoration-none">{{ game.display_name }}</a>
+                                </h2>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if discord_settings %}
+                                <div class="card-body">
+                                    <form action='{% url "core:subscription_create" %}'
+                                          method="post"
+                                          class="mb-2">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="game_id" value="{{ game.id }}">
+                                        <select name="discord_webhook" class="form-select">
+                                            {% for discord_setting in discord_settings %}
+                                                <option value="{{ discord_setting.id }}">{{ discord_setting.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <div>
+                                            <a href="#" class="card-link mt-2">Notify when new drop are found</a>
+                                        </div>
+                                        <div>
+                                            <a href="#" class="card-link mt-2">Notify when the drop is live</a>
+                                        </div>
+                                    </form>
+                                </div>
+                            {% else %}
+                                <div class="card-body text-end">
+                                    <a href="{% url 'core:add_discord_webhook' %}" class="card-link">Add Discord settings</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for drop_benefit in game_data.drop_benefits %}
+                            <li class="list-group-item d-flex align-items-center">
+                                <img src="{{ drop_benefit.image_asset_url }}"
+                                     alt="{{ drop_benefit.name }}"
+                                     class="img-fluid rounded me-3"
+                                     height="50"
+                                     width="50"
+                                     loading="lazy">
+                                <a href="{{ drop_benefit.details_url }}" class="text-decoration-none">{{ drop_benefit.name }}</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+{% endblock content %}

@@ -2,10 +2,12 @@ import os
 from pathlib import Path
 
 import sentry_sdk
+from django.contrib import messages
 from dotenv import find_dotenv, load_dotenv
 from platformdirs import user_data_dir
 
 load_dotenv(dotenv_path=find_dotenv(), verbose=True)
+
 
 DATA_DIR = Path(
     user_data_dir(
@@ -180,4 +182,13 @@ SOCIALACCOUNT_PROVIDERS = {
         "SCOPE": ["user:read:email"],
         "AUTH_PARAMS": {"force_verify": True},
     },
+}
+
+
+MESSAGE_TAGS: dict[int, str] = {
+    messages.DEBUG: "alert-info",
+    messages.INFO: "alert-info",
+    messages.SUCCESS: "alert-success",
+    messages.WARNING: "alert-warning",
+    messages.ERROR: "alert-danger",
 }

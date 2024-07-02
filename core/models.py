@@ -11,6 +11,7 @@ class DiscordSetting(models.Model):
     webhook_url = models.URLField()
     history = HistoricalRecords()
     disabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return f"Discord: {self.user.username} - {self.name}"

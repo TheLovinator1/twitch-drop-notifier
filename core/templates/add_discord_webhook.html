@@ -1,206 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="ie=edge">
-        <meta name="description" content="Twitch Drops">
-        <meta name="author" content="TheLovinator">
-        <meta name="keywords" content="Twitch, Drops, Twitch Drops">
-        <meta name="robots" content="index, follow">
-        <title>Add Discord Webhook</title>
-        <style>
-        :root {
-            --background-color: #121212;
-            --text-color: #e0e0e0;
-            --header-background: #1e1e1e;
-            --border-color: #333;
-            --button-background: #6441a5;
-            --button-hover-background: #503682;
-            --button-shadow: rgba(0, 0, 0, 0.2);
-            --button-padding: 0.5rem 1rem;
-            --button-margin: 0.5rem 0;
-            --button-radius: 0.5rem;
-            --button-font-size: 0.875rem;
-            --input-background: #2a2a2a;
-            --input-border: #444;
-            --input-focus-border: #6441a5;
-            --input-padding: 0.5rem;
-            --input-radius: 0.5rem;
-            --form-gap: 1rem;
-        }
-
-        html {
-            max-width: 88ch;
-            padding: calc(1vmin + 0.5rem);
-            margin-inline: auto;
-            font-size: clamp(1em, 0.909em + 0.45vmin, 1.25em);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        header {
-            padding: 10px 30px;
-            background: var(--header-background);
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .game {
-            margin-bottom: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        img {
-            margin: 10px;
-        }
-
-        button {
-            background-color: var(--button-background);
-            color: white;
-            border: none;
-            padding: var(--button-padding);
-            margin: var(--button-margin);
-            border-radius: var(--button-radius);
-            cursor: pointer;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-            font-size: var(--button-font-size);
-            box-shadow: 0 2px 4px var(--button-shadow);
-        }
-
-        button:hover {
-            background-color: var(--button-hover-background);
-            box-shadow: 0 3px 6px var(--button-shadow);
-        }
-
-        .navbar {
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        .logo {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .messages {
-            list-style-type: none;
-            padding: 0;
-            margin-bottom: var(--form-gap);
-        }
-
-        .error {
-            color: red;
-        }
-
-        .success {
-            color: green;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: var(--form-gap);
-            background-color: var(--header-background);
-            padding: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        form div {
-            display: flex;
-            flex-direction: column;
-        }
-
-        label {
-            margin-bottom: 0.5rem;
-            font-weight: bold;
-        }
-
-        input, select, textarea {
-            background-color: var(--input-background);
-            border: 1px solid var(--input-border);
-            padding: var(--input-padding);
-            
-            color: var(--text-color);
-            transition: border-color 0.3s ease;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--input-focus-border);
-            outline: none;
-        }
-
-        small {
-            color: #aaa;
-            margin-top: 0.5rem;
-        }
-        </style>
-    </head>
-    <body>
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li {% if message.tags %}class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        <h1 class="logo">
-            <a href="{% url 'core:index' %}">Twitch Drops</a>
-        </h1>
-        <div class="navbar">
-            <a href='{% url "api-1.0.0:openapi-view" %}'>API</a> |
-            <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
-            TheLovinator#9276
-        </div>
-        <h1>Add Discord Webhook</h1>
-        <form method="post">
+{% extends "base.html" %}
+{% block content %}
+    <div class="container">
+        <h1 class="my-4">Add Discord Webhook</h1>
+        <form method="post" class="needs-validation" novalidate>
             {% csrf_token %}
             {{ form.non_field_errors }}
-            <div>
+            <div class="mb-3">
                 {{ form.name.errors }}
-                <label for="{{ form.name.id_for_label }}">{{ form.name.label_tag }}</label>
-                {{ form.name }}
-                <small>{{ form.name.help_text }}</small>
+                <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                <input type="text"
+                       name="name"
+                       maxlength="255"
+                       required=""
+                       class="form-control"
+                       aria-describedby="id_name_helptext"
+                       id="id_name">
+                <div class="form-text text-muted">{{ form.name.help_text }}</div>
             </div>
-            <div>
+            <div class="mb-3">
                 {{ form.webhook_url.errors }}
-                <label for="{{ form.webhook_url.id_for_label }}">{{ form.webhook_url.label_tag }}</label>
-                {{ form.webhook_url }}
-                <small>{{ form.webhook_url.help_text }}</small>
+                <label for="{{ form.webhook_url.id_for_label }}" class="form-label">{{ form.webhook_url.label }}</label>
+                <input type="url"
+                       name="webhook_url"
+                       required=""
+                       class="form-control"
+                       aria-describedby="id_webhook_url_helptext"
+                       id="id_webhook_url">
+                <div class="form-text text-muted">{{ form.webhook_url.help_text }}</div>
             </div>
-            <button type="submit">Add Webhook</button>
+            <button type="submit" class="btn btn-primary">Add Webhook</button>
         </form>
-        <h2>Webhooks</h2>
-        <ul>
+        <h2 class="mt-5">Webhooks</h2>
+        <ul class="list-group mt-3">
             {% for webhook in webhooks %}
-                <li>
-                    <form method="post" action="{% url 'core:delete_discord_webhook' %}">
-                        <strong>{{ webhook.name }}</strong>
-                        <small>
-                            <a href="{{ webhook.webhook_url }}">{{ webhook.webhook_url }}</a>
-                        </small>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ webhook.webhook_url }}" target="_blank">{{ webhook.name }}</a>
+                        <small class="text-muted">added on {{ webhook.created_at|date:"F j, Y, g:i a" }}</small>
+                    </div>
+                    <form method="post"
+                          action="{% url 'core:delete_discord_webhook' %}"
+                          class="mb-0">
                         {% csrf_token %}
                         <input type="hidden" name="webhook_id" value="{{ webhook.id }}">
                         <input type="hidden" name="webhook_name" value="{{ webhook.name }}">
                         <input type="hidden" name="webhook_url" value="{{ webhook.webhook_url }}">
-                        <button type="submit">Delete</button>
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
                 </li>
             {% endfor %}
         </ul>
-    </body>
-</html>
+    </div>
+{% endblock content %}

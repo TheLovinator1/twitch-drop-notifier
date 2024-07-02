@@ -1,0 +1,61 @@
+{% load static %}
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="Twitch drops">
+        <meta name="author" content="TheLovinator">
+        <meta name="keywords" content="Twitch, drops">
+        <meta name="robots" content="index, follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Twitch drops</title>
+        <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    </head>
+    <body>
+        {% for message in messages %}
+            <div class="alert alert-dismissible {{ message.tags }} fade show"
+                 role="alert">
+                <div>{{ message | safe }}</div>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endfor %}
+        <article class="container mt-5">
+            <header class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                <h1 class="h2">
+                    <a href='{% url "core:index" %}' class="text-decoration-none">Twitch drops</a>
+                </h1>
+                <nav>
+                    <ul class="nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href='{% url "api-1.0.0:openapi-view" %}'>API</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="https://github.com/sponsors/TheLovinator1">Donate</a>
+                        </li>
+                        <li>
+                            <a class="nav-link" href='{% url "core:add_discord_webhook" %}'>Webhooks</a>
+                        </li>
+                        {% if user.is_authenticated %}
+                            <li class="nav-item">
+                                <a class="nav-link" href='{% url "account_logout" %}'>Logout</a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href='{% provider_login_url "twitch" %}'>Login</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </header>
+            {% block content %}
+            {% endblock content %}
+        </article>
+        <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    </body>
+</html>
