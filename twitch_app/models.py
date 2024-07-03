@@ -10,6 +10,11 @@ from simple_history.models import HistoricalRecords
 
 
 class Organization(auto_prefetch.Model):
+    """The company that owns the game.
+
+    For example, 2K games.
+    """
+
     id = models.TextField(primary_key=True)
     name = models.TextField(blank=True, null=True)
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
@@ -25,6 +30,11 @@ class Organization(auto_prefetch.Model):
 
 
 class Game(auto_prefetch.Model):
+    """The game that the drop campaign is for.
+
+    For example, MultiVersus.
+    """
+
     id = models.TextField(primary_key=True)
     slug = models.TextField(blank=True, null=True)
     twitch_url = models.GeneratedField(  # type: ignore  # noqa: PGH003
@@ -56,6 +66,8 @@ class Game(auto_prefetch.Model):
 
 
 class DropBenefit(auto_prefetch.Model):
+    """Information about the drop."""
+
     id = models.TextField(primary_key=True)
     created_at = models.DateTimeField(blank=True, null=True)
     entitlement_limit = models.IntegerField(blank=True, null=True)
@@ -65,8 +77,9 @@ class DropBenefit(auto_prefetch.Model):
     owner_organization = auto_prefetch.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
+        related_name="drop_benefits",
     )
-    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_benefits")
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     history = HistoricalRecords()
@@ -81,13 +94,15 @@ class DropBenefit(auto_prefetch.Model):
 
 
 class TimeBasedDrop(auto_prefetch.Model):
+    """The actual drop that is being given out."""
+
     id = models.TextField(primary_key=True)
     required_subs = models.IntegerField(blank=True, null=True)
     end_at = models.DateTimeField(blank=True, null=True)
     name = models.TextField(blank=True, null=True)
     required_minutes_watched = models.IntegerField(blank=True, null=True)
     start_at = models.DateTimeField(blank=True, null=True)
-    benefits = models.ManyToManyField(DropBenefit)
+    benefits = models.ManyToManyField(DropBenefit, related_name="time_based_drops")
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     history = HistoricalRecords()
@@ -106,6 +121,11 @@ class TimeBasedDrop(auto_prefetch.Model):
 
 
 class DropCampaign(auto_prefetch.Model):
+    """Drops are grouped into campaigns.
+
+    For example, MultiVersus S1 Drops
+    """
+
     id = models.TextField(primary_key=True)
     account_link_url = models.URLField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -125,7 +145,7 @@ class DropCampaign(auto_prefetch.Model):
         on_delete=models.CASCADE,
         related_name="drop_campaigns",
     )
-    time_based_drops = models.ManyToManyField(TimeBasedDrop)
+    time_based_drops = models.ManyToManyField(TimeBasedDrop, related_name="drop_campaigns")
     added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     history = HistoricalRecords()

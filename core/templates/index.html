@@ -1,61 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-    {% for organization, org_data in orgs_data.items %}
-        <div class="container mt-4">
-            {% for game, game_data in org_data.games.items %}
-                <div class="card mb-4">
-                    <div class="row g-0">
-                        <div class="col-md-2">
-                            <img src="{{ game.image_url }}"
-                                 alt="{{ game.display_name }}"
-                                 class="img-fluid rounded-start"
-                                 height="150"
-                                 width="150"
-                                 loading="lazy">
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card-body">
-                                <h2 class="card-title h5">
-                                    <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
-                                       class="text-decoration-none">{{ game.display_name }}</a>
-                                </h2>
-                            </div>
-                        </div>
+    <div class="container mt-4">
+        {% for game in games %}
+            <div class="card mb-4">
+                <div class="row g-0">
+                    <div class="col-md-2">
+                        <img src="{{ game.image_url }}"
+                             alt="{{ game.display_name }}"
+                             class="img-fluid rounded-start"
+                             height="150"
+                             width="150"
+                             loading="lazy">
                     </div>
-                    <div class="card-body card-bottom">
-                        {% if discord_settings %}
-                            <div class="card-body">
-                                <div>Available on iOS: {{ game_data.ios_available|yesno:"Yes,No" }}</div>
-                            </div>
-                        {% else %}
-                            <div class="card-body text-end">
-                                <a href="{% url 'core:add_discord_webhook' %}" class="card-link">Add Discord settings</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="card-body card-bottom">
-                        <div class="row">
-                            {% for drop_benefit in game_data.drop_benefits %}
-                                <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
-                                    <img src="{{ drop_benefit.image_asset_url }}"
-                                         alt="{{ drop_benefit.name }}"
-                                         class="img-fluid rounded me-3"
-                                         height="50"
-                                         width="50"
-                                         loading="lazy">
-                                    {# Only show the entitlement limit if it's not None or above 1 #}
-                                    {% if drop_benefit.entitlement_limit > 1 %}
-                                        <span class="badge bg-primary position-absolute top-100 start-20 translate-middle">{{ drop_benefit.entitlement_limit }}
-                                            <span class="visually-hidden">limit per account</span>
-                                        </span>
-                                    {% endif %}
-                                    {{ drop_benefit.name }}
-                                </div>
-                            {% endfor %}
+                    <div class="col-md-4">
+                        <div class="card-body">
+                            <h2 class="card-title h5">
+                                <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
+                            </h2>
                         </div>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    {% endfor %}
+                {% for campaign in game.campaigns %}
+                    <div class="card-body card-bottom">
+                        {% for drop in campaign.drops %}
+                            <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
+                                <img src="{{ drop.image_url|default:'https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/default.png' }}"
+                                     alt="{{ drop.name }} drop image"
+                                     class="img-fluid rounded me-3"
+                                     height="50"
+                                     width="50"
+                                     loading="lazy">
+                                {{ drop.name }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
 {% endblock content %}

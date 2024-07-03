@@ -4,14 +4,15 @@ import auto_prefetch
 import django.db.models.deletion
 import django.db.models.manager
 from django.db import migrations
+from django.db.migrations.operations.base import Operation
 
 
 class Migration(migrations.Migration):
-    dependencies = [
+    dependencies: list[tuple[str, str]] = [
         ("twitch_app", "0005_alter_dropbenefit_options_alter_dropcampaign_options_and_more"),
     ]
 
-    operations = [
+    operations: list[Operation] = [
         migrations.AlterModelOptions(
             name="dropbenefit",
             options={

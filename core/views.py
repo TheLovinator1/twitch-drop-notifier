@@ -1,4 +1,6 @@
+import datetime
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.contrib import messages
@@ -17,7 +19,6 @@ from twitch_app.models import (
     DropBenefit,
     DropCampaign,
     Game,
-    Organization,
     TimeBasedDrop,
 )
 
@@ -32,6 +33,47 @@ from django.views.decorators.http import require_POST
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@dataclass
+class DropContext:
+    """The drop."""
+
+    drops_id: str | None = None
+    image_url: str | None = None
+    name: str | None = None
+    limit: int | None = None
+    required_minutes_watched: int | None = None
+    required_subs: int | None = None
+
+
+@dataclass
+class CampaignContext:
+    """Drops are grouped into campaigns."""
+
+    drop_id: str | None = None
+    name: str | None = None
+    image_url: str | None = None
+    status: str | None = None
+    account_link_url: str | None = None
+    description: str | None = None
+    details_url: str | None = None
+    ios_available: bool | None = None
+    start_at: datetime.datetime | None = None
+    end_at: datetime.datetime | None = None
+    drops: list[DropContext] | None = None
+
+
+@dataclass
+class GameContext:
+    """Campaigns are under a game."""
+
+    game_id: str | None = None
+    campaigns: list[CampaignContext] | None = None
+    image_url: str | None = None
+    display_name: str | None = None
+    twitch_url: str | None = None
+    slug: str | None = None
+
+
 def index(request: HttpRequest) -> HttpResponse:
     """/ index page.
 
@@ -41,50 +83,61 @@ def index(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Returns the index page.
     """
-    organizations: BaseManager[Organization] = Organization.objects.all()
+    list_of_games: list[GameContext] = []
 
-    orgs_data = {org: {"games": {}, "drop_campaigns": []} for org in organizations}
-    for org in organizations:
-        drop_benefits: BaseManager[DropBenefit] = DropBenefit.objects.filter(
-            owner_organization=org,
+    for game in Game.objects.all():
+        campaigns: list[CampaignContext] = []
+        for campaign in DropCampaign.objects.filter(game=game, status="ACTIVE"):
+            drops: list[DropContext] = []
+
+            drop: TimeBasedDrop
+            for drop in campaign.time_based_drops.all():
+                benefit: DropBenefit | None = drop.benefits.first()
+                drops.append(
+                    DropContext(
+                        drops_id=drop.id,
+                        image_url=benefit.image_asset_url if benefit else None,
+                        name=drop.name,
+                        limit=None,
+                        required_minutes_watched=drop.required_minutes_watched,
+                        required_subs=drop.required_subs,
+                    ),
+                )
+
+            if not drops:
+                logger.info("No drops found for %s", campaign.name)
+                continue
+
+            campaigns.append(
+                CampaignContext(
+                    drop_id=campaign.id,
+                    name=campaign.name,
+                    image_url=campaign.image_url,
+                    status=campaign.status,
+                    account_link_url=campaign.account_link_url,
+                    description=campaign.description,
+                    details_url=campaign.details_url,
+                    start_at=campaign.start_at,
+                    end_at=campaign.end_at,
+                    drops=drops,
+                ),
+            )
+
+        if not campaigns:
+            logger.info("No campaigns found for %s", game.display_name)
+            continue
+
+        list_of_games.append(
+            GameContext(
+                game_id=game.id,
+                campaigns=campaigns,
+                image_url=game.image_url,
+                display_name=game.display_name,
+                twitch_url=game.twitch_url,
+            ),
         )
-        games: set[Game] = {benefit.game for benefit in drop_benefits}
 
-        for game in games:
-            if game not in orgs_data[org]["games"]:
-                orgs_data[org]["games"][game] = {
-                    "drop_benefits": [],
-                    "time_based_drops": [],
-                }
-
-        for benefit in drop_benefits:
-            orgs_data[org]["games"][benefit.game]["drop_benefits"].append(benefit)
-
-        time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(
-            benefits__in=drop_benefits,
-        ).distinct()
-        for drop in time_based_drops:
-            for benefit in drop.benefits.all():
-                if benefit.game in orgs_data[org]["games"]:
-                    orgs_data[org]["games"][benefit.game]["time_based_drops"].append(
-                        drop,
-                    )
-
-        drop_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(
-            owner=org,
-        )
-        for campaign in drop_campaigns:
-            orgs_data[org]["drop_campaigns"].append(campaign)
-
-    if request.user.is_authenticated:
-        discord_settings: BaseManager[DiscordSetting] = DiscordSetting.objects.filter(
-            user=request.user,
-        )
-
-    context = {
-        "orgs_data": orgs_data,
-        "discord_settings": discord_settings if request.user.is_authenticated else None,
-    }
+    context: dict[str, list[GameContext]] = {"games": list_of_games}
 
     return TemplateResponse(
         request=request,
