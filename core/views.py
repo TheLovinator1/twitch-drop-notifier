@@ -87,7 +87,11 @@ def index(request: HttpRequest) -> HttpResponse:
 
     for game in Game.objects.all().only("id", "image_url", "display_name", "slug"):
         campaigns: list[CampaignContext] = []
-        for campaign in DropCampaign.objects.filter(game=game, status="ACTIVE").only(
+        for campaign in DropCampaign.objects.filter(
+            game=game,
+            status="ACTIVE",
+            end_at__gt=datetime.datetime.now(tz=datetime.UTC),
+        ).only(
             "id",
             "name",
             "image_url",

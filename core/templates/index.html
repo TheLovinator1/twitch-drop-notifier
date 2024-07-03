@@ -22,6 +22,10 @@
                 </div>
                 {% for campaign in game.campaigns %}
                     <div class="card-body card-bottom">
+                        <h3 class="h6">
+                            {{ campaign.name }}
+                            <p>Ends in: {{ campaign.end_at|timeuntil }}</p>
+                        </h3>
                         {% for drop in campaign.drops %}
                             <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
                                 <img src="{{ drop.image_url }}"
