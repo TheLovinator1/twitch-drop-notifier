@@ -85,20 +85,38 @@ def index(request: HttpRequest) -> HttpResponse:
     """
     list_of_games: list[GameContext] = []
 
-    for game in Game.objects.all():
+    for game in Game.objects.all().only("id", "image_url", "display_name", "slug"):
         campaigns: list[CampaignContext] = []
-        for campaign in DropCampaign.objects.filter(game=game, status="ACTIVE"):
+        for campaign in DropCampaign.objects.filter(game=game, status="ACTIVE").only(
+            "id",
+            "name",
+            "image_url",
+            "status",
+            "account_link_url",
+            "description",
+            "details_url",
+            "start_at",
+            "end_at",
+        ):
             drops: list[DropContext] = []
-
             drop: TimeBasedDrop
-            for drop in campaign.time_based_drops.all():
+            for drop in campaign.time_based_drops.all().only(
+                "id",
+                "name",
+                "required_minutes_watched",
+                "required_subs",
+            ):
                 benefit: DropBenefit | None = drop.benefits.first()
+                image_asset_url: str = (
+                    benefit.image_asset_url
+                    if benefit
+                    else "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/default.png"
+                )
                 drops.append(
                     DropContext(
                         drops_id=drop.id,
-                        image_url=benefit.image_asset_url if benefit else None,
+                        image_url=image_asset_url,
                         name=drop.name,
-                        limit=None,
                         required_minutes_watched=drop.required_minutes_watched,
                         required_subs=drop.required_subs,
                     ),

@@ -24,7 +24,7 @@
                     <div class="card-body card-bottom">
                         {% for drop in campaign.drops %}
                             <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
-                                <img src="{{ drop.image_url|default:'https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/default.png' }}"
+                                <img src="{{ drop.image_url }}"
                                      alt="{{ drop.name }} drop image"
                                      class="img-fluid rounded me-3"
                                      height="50"
