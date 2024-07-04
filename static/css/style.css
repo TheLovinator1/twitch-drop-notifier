@@ -55,3 +55,8 @@ a:hover {
     background-color: #181818;
     border-color: #444444;
 }
+
+/* Table of games to the left */
+.toc {
+    top: 1rem;
+}
