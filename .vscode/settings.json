@@ -3,6 +3,7 @@
         "allauth",
         "appendonly",
         "asgiref",
+        "forloop",
         "logdir",
         "memlock",
         "networkidle",

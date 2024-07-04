@@ -12,6 +12,7 @@ from django.http import (
 )
 from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
+from django.views.generic import ListView
 
 from core.discord import send
 from core.models import DiscordSetting
@@ -279,3 +280,10 @@ def subscription_create(request: HttpRequest) -> HttpResponse:
 
     messages.error(request, "Failed to create subscription")
     return redirect("core:index")
+
+
+class GameView(ListView):
+    model = Game
+    template_name: str = "games.html"
+    context_object_name: str = "games"
+    paginate_by = 100

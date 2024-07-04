@@ -25,4 +25,9 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=views.subscription_create,
         name="subscription_create",
     ),
+    path(
+        route="games/",
+        view=views.GameView.as_view(),
+        name="games",
+    ),
 ]

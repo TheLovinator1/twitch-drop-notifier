@@ -60,3 +60,16 @@ a:hover {
 .toc {
     top: 1rem;
 }
+
+/* Checkboxes for subscribing to notifications */
+/* Checked */
+.form-check-input:checked {
+    background-color: #af1548;
+    border-color: #111111;
+}
+
+/* Unchecked */
+.form-check-input {
+    background-color: #0c0c0c;
+    border-color: #111111;
+}

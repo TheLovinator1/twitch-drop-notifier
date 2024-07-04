@@ -37,6 +37,7 @@ lint.ignore = [
 [tool.djlint]
 profile = "django"
 format_attribute_template_tags = true
+ignore="H006" # Img tag should have height and width attributes.
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
