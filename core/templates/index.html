@@ -22,10 +22,26 @@
                 </div>
                 {% for campaign in game.campaigns %}
                     <div class="card-body card-bottom">
-                        <h3 class="h6">
-                            {{ campaign.name }}
-                            <p>Ends in: {{ campaign.end_at|timeuntil }}</p>
-                        </h3>
+                        <h3 class="h6">{{ campaign.name }}</h3>
+                        <p class="mb-2 text-muted">Ends in: {{ campaign.end_at|timeuntil }}</p>
+                        {% if campaign.description != campaign.name %}
+                            {% if campaign.description|length|get_digit:"-1" > 100 %}
+                                <p>
+                                    <a class="btn btn-link p-0 text-muted"
+                                       data-bs-toggle="collapse"
+                                       href="#collapseDescription{{ campaign.drop_id }}"
+                                       role="button"
+                                       aria-expanded="false"
+                                       aria-controls="collapseDescription{{ campaign.drop_id }}">Show Description</a>
+                                </p>
+                                <div class="collapse" id="collapseDescription{{ campaign.drop_id }}">
+                                    <div class="card card-body">{{ campaign.description }}</div>
+                                    <br>
+                                </div>
+                            {% else %}
+                                <p>{{ campaign.description }}</p>
+                            {% endif %}
+                        {% endif %}
                         {% for drop in campaign.drops %}
                             <div class="col-6 col-md-4 d-flex align-items-center mb-2 position-relative">
                                 <img src="{{ drop.image_url }}"
