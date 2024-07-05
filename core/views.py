@@ -1,8 +1,11 @@
 import datetime
 import logging
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-import httpx
+import hishel
+from django.conf import settings
 from django.contrib import messages
 from django.http import (
     HttpRequest,
@@ -21,7 +24,20 @@ from twitch_app.models import (
 
 from .forms import DiscordSettingForm
 
+if TYPE_CHECKING:
+    import httpx
+
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+cache_dir: Path = settings.DATA_DIR / "cache"
+cache_dir.mkdir(exist_ok=True, parents=True)
+storage = hishel.FileStorage(base_path=cache_dir)
+controller = hishel.Controller(
+    cacheable_status_codes=[200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501],
+    allow_stale=True,
+    always_revalidate=True,
+)
 
 
 @dataclass
@@ -210,14 +226,12 @@ class Webhooks(TemplateView):
         webhooks: list[str] = cookie.split(",")
         webhooks = list(filter(None, webhooks))
 
-        webhook_respones: list[WebhookData] = []
+        webhook_responses: list[WebhookData] = []
 
-        # Use httpx to connect to webhook url and get the response
-        # Use the response to get name of the webhook
-        with httpx.Client() as client:
+        with hishel.CacheClient(storage=storage, controller=controller) as client:
             for webhook in webhooks:
                 our_webhook = WebhookData(name="Unknown", url=webhook, status="Failed", response="No response")
-                response: httpx.Response = client.get(url=webhook)
+                response: httpx.Response = client.get(url=webhook, extensions={"cache_metadata": True})
                 if response.is_success:
                     our_webhook.name = response.json()["name"]
                     our_webhook.status = "Success"
@@ -227,9 +241,9 @@ class Webhooks(TemplateView):
                     our_webhook.response = response.text
 
                 # Add to the list of webhooks
-                webhook_respones.append(our_webhook)
+                webhook_responses.append(our_webhook)
 
-        return {"webhooks": webhook_respones, "form": DiscordSettingForm()}
+        return {"webhooks": webhook_responses, "form": DiscordSettingForm()}
 
 
 @require_POST

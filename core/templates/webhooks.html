@@ -27,8 +27,7 @@
                 {% for webhook in webhooks %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
-                            <a href="{{ webhook.webhook_url }}" target="_blank">{{ webhook.name }}</a>
-                            <small class="text-muted">added on {{ webhook.created_at|date:"F j, Y, g:i a" }}</small>
+                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a> - <small>{{ webhook.status }}</small>
                         </div>
                         <form method="post" action="" class="mb-0">
                             {% csrf_token %}
