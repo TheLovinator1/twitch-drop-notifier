@@ -15,10 +15,6 @@ class DiscordSettingForm(forms.Form):
                 regex=r"https://discord.com/api/webhooks/\d{18}/[a-zA-Z0-9_-]{68}",
                 message="The URL must be a valid Discord webhook URL.",
             ),
-            URLValidator(
-                regex=r"https://discordapp.com/api/webhooks/\d{18}/[a-zA-Z0-9_-]{68}",
-                message="The URL must be a valid Discord webhook URL.",
-            ),
         ],
         help_text="The URL can be found by right-clicking on the channel and selecting 'Edit Channel', then 'Integrations', and 'Webhooks'.",  # noqa: E501
     )

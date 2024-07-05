@@ -1,19 +1,17 @@
+from __future__ import annotations
+
 import datetime
 import logging
 from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import hishel
 from django.conf import settings
 from django.contrib import messages
-from django.http import (
-    HttpRequest,
-    HttpResponse,
-)
+from django.http.response import HttpResponse
 from django.template.response import TemplateResponse
-from django.views.decorators.http import require_POST
-from django.views.generic import ListView, TemplateView
+from django.views.generic import FormView, ListView
+from httpx._models import Response
 
 from twitch_app.models import (
     DropBenefit,
@@ -25,7 +23,13 @@ from twitch_app.models import (
 from .forms import DiscordSettingForm
 
 if TYPE_CHECKING:
-    import httpx
+    from pathlib import Path
+
+    from django.http import (
+        HttpRequest,
+        HttpResponse,
+    )
+    from httpx import Response
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -210,18 +214,21 @@ class WebhookData:
 
     name: str | None = None
     url: str | None = None
+    avatar: str | None = None
     status: str | None = None
     response: str | None = None
 
 
-class Webhooks(TemplateView):
+class WebhooksView(FormView):
     model = Game
-    template_name: str = "webhooks.html"
+    template_name = "webhooks.html"
+    form_class = DiscordSettingForm
     context_object_name: str = "webhooks"
     paginate_by = 100
 
-    def get_context_data(self, **kwargs) -> dict[str, list[WebhookData] | DiscordSettingForm]:  # noqa: ANN003, ARG002
+    def get_context_data(self: WebhooksView, **kwargs: dict[str, WebhooksView] | DiscordSettingForm) -> dict[str, Any]:
         """Get the context data for the view."""
+        context: dict[str, DiscordSettingForm | list[WebhookData]] = super().get_context_data(**kwargs)
         cookie: str = self.request.COOKIES.get("webhooks", "")
         webhooks: list[str] = cookie.split(",")
         webhooks = list(filter(None, webhooks))
@@ -231,43 +238,57 @@ class Webhooks(TemplateView):
         with hishel.CacheClient(storage=storage, controller=controller) as client:
             for webhook in webhooks:
                 our_webhook = WebhookData(name="Unknown", url=webhook, status="Failed", response="No response")
-                response: httpx.Response = client.get(url=webhook, extensions={"cache_metadata": True})
+                response: Response = client.get(url=webhook, extensions={"cache_metadata": True})
                 if response.is_success:
-                    our_webhook.name = response.json()["name"]
+                    our_webhook.name = response.json().get("name", "Unknown")
                     our_webhook.status = "Success"
-                    our_webhook.response = response.text
                 else:
                     our_webhook.status = "Failed"
-                    our_webhook.response = response.text
 
-                # Add to the list of webhooks
+                our_webhook.response = response.text
+
+                if response.json().get("id") and response.json().get("avatar"):
+                    avatar_url: str = f'https://cdn.discordapp.com/avatars/{response.json().get("id")}/{response.json().get("avatar")}.png'
+
+                our_webhook.avatar = avatar_url or "https://cdn.discordapp.com/embed/avatars/0.png"
+
                 webhook_responses.append(our_webhook)
 
-        return {"webhooks": webhook_responses, "form": DiscordSettingForm()}
+        context.update({
+            "webhooks": webhook_responses,
+            "form": DiscordSettingForm(),
+        })
+        return context
 
+    def form_valid(self: WebhooksView, form: DiscordSettingForm) -> HttpResponse:
+        """Handle valid form submission."""
+        webhook = str(form.cleaned_data["webhook_url"])
 
-@require_POST
-def add_webhook(request: HttpRequest) -> HttpResponse:
-    """Add a webhook to the list of webhooks."""
-    form = DiscordSettingForm(request.POST)
+        with hishel.CacheClient(storage=storage, controller=controller) as client:
+            webhook_response: Response = client.get(url=webhook, extensions={"cache_metadata": True})
+            if not webhook_response.is_success:
+                messages.error(self.request, "Failed to get webhook information. Is the URL correct?")
+                return self.render_to_response(self.get_context_data(form=form))
 
-    if form.is_valid():
-        webhook = str(form.cleaned_data["webhook"])
-        response = HttpResponse()
+        webhook_name: str | None = str(webhook_response.json().get("name")) if webhook_response.is_success else None
 
-        if "webhooks" in request.COOKIES:
-            cookie: str = request.COOKIES["webhooks"]
-            webhooks: list[str] = cookie.split(",")
-            webhooks = list(filter(None, webhooks))
-            if webhook in webhooks:
-                messages.error(request, "Webhook already exists.")
-                return response
-            webhooks.append(webhook)
-            webhook: str = ",".join(webhooks)
+        cookie: str = self.request.COOKIES.get("webhooks", "")
+        webhooks: list[str] = cookie.split(",")
+        webhooks = list(filter(None, webhooks))
+        if webhook in webhooks:
+            if webhook_name:
+                messages.error(self.request, f"Webhook {webhook_name} already exists.")
+            else:
+                messages.error(self.request, "Webhook already exists.")
+            return self.render_to_response(self.get_context_data(form=form))
 
-        response.set_cookie(key="webhooks", value=webhook, max_age=60 * 60 * 24 * 365)
+        webhooks.append(webhook)
+        response: HttpResponse = self.render_to_response(self.get_context_data(form=form))
+        response.set_cookie(key="webhooks", value=",".join(webhooks), max_age=60 * 60 * 24 * 365)
 
-        messages.info(request, "Webhook successfully added.")
+        messages.success(self.request, "Webhook successfully added.")
         return response
 
-    return HttpResponse(status=400, content="Invalid form data.")
+    def form_invalid(self: WebhooksView, form: DiscordSettingForm) -> HttpResponse:
+        messages.error(self.request, "Failed to add webhook.")
+        return self.render_to_response(self.get_context_data(form=form))

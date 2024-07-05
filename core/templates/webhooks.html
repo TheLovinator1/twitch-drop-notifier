@@ -2,10 +2,7 @@
 {% block content %}
     <div class="container">
         <h1 class="my-4">Add Discord Webhook</h1>
-        <form method="post"
-              action="{% url 'core:add_webhook' %}"
-              class="needs-validation"
-              novalidate>
+        <form method="post" class="needs-validation" novalidate>
             {% csrf_token %}
             {{ form.non_field_errors }}
             <div class="mb-3">
@@ -27,7 +24,17 @@
                 {% for webhook in webhooks %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
-                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a> - <small>{{ webhook.status }}</small>
+                            <img src="{{ webhook.avatar }}?size=32"
+                                 alt="{{ webhook.name }}"
+                                 class="rounded-circle"
+                                 height="32"
+                                 width="32">
+                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
+                            {% if webhook.status == 'Success' %}
+                                <span class="badge bg-success">Working</span>
+                            {% else %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% endif %}
                         </div>
                         <form method="post" action="" class="mb-0">
                             {% csrf_token %}

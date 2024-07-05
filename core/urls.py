@@ -14,14 +14,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=views.GameView.as_view(),
         name="games",
     ),
-    path(
-        route="webhooks/",
-        view=views.Webhooks.as_view(),
-        name="webhooks",
-    ),
-    path(
-        route="webhooks/add/",
-        view=views.add_webhook,
-        name="add_webhook",
-    ),
+    path("webhooks/", views.WebhooksView.as_view(), name="webhooks"),
 ]
