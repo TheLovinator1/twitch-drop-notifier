@@ -1,15 +1,24 @@
 from django import forms
+from django.core.validators import URLValidator
 
 
 class DiscordSettingForm(forms.Form):
-    name = forms.CharField(
-        max_length=255,
-        label="Name",
-        required=True,
-        help_text="Friendly name for knowing where the notification goes to.",
-    )
     webhook_url = forms.URLField(
         label="Webhook URL",
         required=True,
-        help_text="The URL to the Discord webhook. The URL can be found by right-clicking on the channel and selecting 'Edit Channel', then 'Integrations', and 'Webhooks'.",  # noqa: E501
+        validators=[
+            URLValidator(
+                schemes=["https"],
+                message="The URL must be a valid HTTPS URL.",
+            ),
+            URLValidator(
+                regex=r"https://discord.com/api/webhooks/\d{18}/[a-zA-Z0-9_-]{68}",
+                message="The URL must be a valid Discord webhook URL.",
+            ),
+            URLValidator(
+                regex=r"https://discordapp.com/api/webhooks/\d{18}/[a-zA-Z0-9_-]{68}",
+                message="The URL must be a valid Discord webhook URL.",
+            ),
+        ],
+        help_text="The URL can be found by right-clicking on the channel and selecting 'Edit Channel', then 'Integrations', and 'Webhooks'.",  # noqa: E501
     )

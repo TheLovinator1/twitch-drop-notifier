@@ -1,98 +1,122 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-lg-3">
-                <div class="position-sticky d-none d-lg-block toc">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Games</h5>
-                            <ul class="list-unstyled">
-                                {% for game in games %}
-                                    <li>
-                                        <a href="#game-{{ game.game_id }}" class="text-decoration-none">{{ game.display_name }}</a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-9">
-                {% for game in games %}
-                    <div class="card mb-4 shadow-sm" id="game-{{ game.game_id }}">
-                        <div class="row g-0">
-                            <div class="col-md-2">
-                                <img src="{{ game.image_url }}"
-                                     alt="{{ game.display_name }}"
-                                     class="img-fluid rounded-start"
-                                     height="283"
-                                     width="212"
-                                     loading="lazy">
-                            </div>
-                            <div class="col-md-10">
-                                <div class="card-body">
-                                    <h2 class="card-title h5">
-                                        <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
-                                    </h2>
-                                    <div class="mt-auto">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="new">
-                                            <label class="form-check-label" for="new">
-                                                Notify when new drop is found on <a href="https://www.twitch.tv/drops/campaigns">Twitch</a>
-                                            </label>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="live">
-                                            <label class="form-check-label" for="live">Notify when a drop starts</label>
-                                        </div>
-                                    </div>
-                                    {% for campaign in game.campaigns %}
-                                        {% if not forloop.first %}<br>{% endif %}
-                                        <div class="mt-3">
-                                            <h3 class="h6">{{ campaign.name }}</h3>
-                                            <p class="mb-2 text-muted">Ends in: {{ campaign.end_at|timeuntil }}</p>
-                                            {% if campaign.description != campaign.name %}
-                                                {% if campaign.description|length|get_digit:"-1" > 100 %}
-                                                    <p>
-                                                        <a class="btn btn-link p-0 text-muted"
-                                                           data-bs-toggle="collapse"
-                                                           href="#collapseDescription{{ campaign.drop_id }}"
-                                                           role="button"
-                                                           aria-expanded="false"
-                                                           aria-controls="collapseDescription{{ campaign.drop_id }}"
-                                                           aria-label="Show Description">Show
-                                                        Description</a>
-                                                    </p>
-                                                    <div class="collapse" id="collapseDescription{{ campaign.drop_id }}">
-                                                        <div class="card card-body">{{ campaign.description }}</div>
-                                                        <br>
-                                                    </div>
-                                                {% else %}
-                                                    <p>{{ campaign.description }}</p>
-                                                {% endif %}
-                                            {% endif %}
-                                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-                                                {% for drop in campaign.drops %}
-                                                    <div class="col d-flex align-items-center position-relative">
-                                                        <img src="{{ drop.image_url }}"
-                                                             alt="{{ drop.name }} drop image"
-                                                             class="img-fluid rounded me-3"
-                                                             height="50"
-                                                             width="50"
-                                                             loading="lazy">
-                                                        {{ drop.name }}
-                                                    </div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
+    <body data-bs-spy="scroll"
+          data-bs-target=".toc"
+          data-bs-offset="-200"
+          tabindex="0">
+        <div class="container mt-4">
+            <div class="row">
+                <div class="col-lg-3">
+                    <div class="position-sticky d-none d-lg-block toc">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Games</h5>
+                                <div id="toc-list" class="list-group">
+                                    {% for game in games %}
+                                        <a class="list-group-item list-group-item-action plain-text-item"
+                                           href="#game-{{ game.game_id }}">{{ game.display_name }}</a>
                                     {% endfor %}
                                 </div>
                             </div>
                         </div>
                     </div>
-                {% endfor %}
+                </div>
+                <div class="col-lg-9">
+                    {% for game in games %}
+                        <div class="card mb-4 shadow-sm" id="game-{{ game.game_id }}">
+                            <div class="row g-0">
+                                <div class="col-md-2">
+                                    <img src="{{ game.image_url }}"
+                                         alt="{{ game.display_name }}"
+                                         class="img-fluid rounded-start"
+                                         height="283"
+                                         width="212"
+                                         loading="lazy">
+                                </div>
+                                <div class="col-md-10">
+                                    <div class="card-body">
+                                        <h2 class="card-title h5">
+                                            <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
+                                        </h2>
+                                        <div class="mt-auto">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="new-{{ game.game_id }}">
+                                                <label class="form-check-label" for="new-{{ game.game_id }}">
+                                                    Notify when new drop is found on <a href="https://www.twitch.tv/drops/campaigns">Twitch</a>
+                                                </label>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="live-{{ game.game_id }}">
+                                                <label class="form-check-label" for="live-{{ game.game_id }}">Notify when a drop starts</label>
+                                            </div>
+                                        </div>
+                                        {% for campaign in game.campaigns %}
+                                            {% if not forloop.first %}<br>{% endif %}
+                                            <div class="mt-3">
+                                                <h3 class="h6">{{ campaign.name }}</h3>
+                                                <p class="mb-2 text-muted">
+                                                    Ends in: <abbr title="{{ campaign.start_at|date:'l d F H:i' }} - {{ campaign.end_at|date:'l d F H:i e' }}">{{ campaign.end_at|timeuntil }}</abbr>
+                                                </p>
+                                                {% if campaign.description != campaign.name %}
+                                                    {% if campaign.description|length > 100 %}
+                                                        <p>
+                                                            <a class="btn btn-link p-0 text-muted"
+                                                               data-bs-toggle="collapse"
+                                                               href="#collapseDescription{{ campaign.drop_id }}"
+                                                               role="button"
+                                                               aria-expanded="false"
+                                                               aria-controls="collapseDescription{{ campaign.drop_id }}"
+                                                               aria-label="Show Description">Show
+                                                            Description</a>
+                                                        </p>
+                                                        <div class="collapse" id="collapseDescription{{ campaign.drop_id }}">
+                                                            <div class="card card-body">{{ campaign.description }}</div>
+                                                            <br>
+                                                        </div>
+                                                    {% else %}
+                                                        <p>{{ campaign.description }}</p>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                                                    {% for drop in campaign.drops %}
+                                                        <div class="col d-flex align-items-center position-relative">
+                                                            <img src="{{ drop.image_url }}"
+                                                                 alt="{{ drop.name }} drop image"
+                                                                 class="img-fluid rounded me-3"
+                                                                 height="50"
+                                                                 width="50"
+                                                                 loading="lazy">
+                                                            {{ drop.name }}
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
-    </div>
+        <script type="module">
+            const scrollSpy = new bootstrap.ScrollSpy(document.body, {
+                target: '.toc'
+            })
+
+            document.body.addEventListener('activate.bs.scrollspy', function (event) {
+                const activeItem = document.querySelector('.toc .active');
+                if (activeItem) {
+                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                }
+            });
+        </script>
+    </body>
 {% endblock content %}

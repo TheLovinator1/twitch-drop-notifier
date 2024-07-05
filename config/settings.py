@@ -74,10 +74,6 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "ninja",
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.twitch",
     "simple_history",
 ]
 
@@ -90,7 +86,6 @@ MIDDLEWARE: list[str] = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
@@ -164,26 +159,6 @@ LOGGING = {
         },
     },
 }
-
-LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/"
-SOCIALACCOUNT_ONLY = True
-ACCOUNT_EMAIL_VERIFICATION = "none"
-SOCIALACCOUNT_STORE_TOKENS = True
-
-AUTHENTICATION_BACKENDS: list[str] = [
-    "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
-]
-
-SOCIALACCOUNT_PROVIDERS = {
-    "twitch": {
-        "SCOPE": ["user:read:email"],
-        "AUTH_PARAMS": {"force_verify": True},
-    },
-}
-
 
 MESSAGE_TAGS: dict[int, str] = {
     messages.DEBUG: "alert-info",

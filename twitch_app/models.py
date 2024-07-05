@@ -1,11 +1,9 @@
 import auto_prefetch
-from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.db import models
 from django.db.models import Value
 from django.db.models.functions import (
     Concat,
 )
-from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
 
@@ -113,10 +111,6 @@ class TimeBasedDrop(auto_prefetch.Model):
         ordering = ("name",)
 
     def __str__(self) -> str:
-        if self.end_at:
-            if self.end_at < timezone.now():
-                return f"{self.benefits.first()} - {self.name} - Ended {naturaltime(self.end_at)}"
-            return f"{self.benefits.first()} - {self.name} - Ends in {naturaltime(self.end_at)}"
         return f"{self.benefits.first()} - {self.name}"
 
 

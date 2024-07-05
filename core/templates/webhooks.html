@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="container">
+        <h1 class="my-4">Add Discord Webhook</h1>
+        <form method="post"
+              action="{% url 'core:add_webhook' %}"
+              class="needs-validation"
+              novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-3">
+                {{ form.webhook_url.errors }}
+                <label for="{{ form.webhook_url.id_for_label }}" class="form-label">{{ form.webhook_url.label }}</label>
+                <input type="url"
+                       name="webhook_url"
+                       required=""
+                       class="form-control"
+                       aria-describedby="id_webhook_url_helptext"
+                       id="id_webhook_url">
+                <div class="form-text text-muted">{{ form.webhook_url.help_text }}</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Webhook</button>
+        </form>
+        <h2 class="mt-5">Webhooks</h2>
+        {% if webhooks %}
+            <ul class="list-group mt-3">
+                {% for webhook in webhooks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{{ webhook.webhook_url }}" target="_blank">{{ webhook.name }}</a>
+                            <small class="text-muted">added on {{ webhook.created_at|date:"F j, Y, g:i a" }}</small>
+                        </div>
+                        <form method="post" action="" class="mb-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="webhook_id" value="{{ webhook.id }}">
+                            <input type="hidden" name="webhook_name" value="{{ webhook.name }}">
+                            <input type="hidden" name="webhook_url" value="{{ webhook.webhook_url }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">No webhooks added yet.</p>
+        {% endif %}
+    </div>
+{% endblock content %}

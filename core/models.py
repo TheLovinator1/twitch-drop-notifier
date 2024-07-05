@@ -1,28 +1,26 @@
-from django.contrib.auth.models import User
+from typing import Literal
+
+import auto_prefetch
 from django.db import models
 from simple_history.models import HistoricalRecords
 
 from twitch_app.models import Game
 
 
-class DiscordSetting(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    webhook_url = models.URLField()
-    history = HistoricalRecords()
-    disabled = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+class Webhook(auto_prefetch.Model):
+    """Webhooks to send notifications to."""
 
-    def __str__(self) -> str:
-        return f"Discord: {self.user.username} - {self.name}"
-
-
-class Subscription(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    url = models.URLField(unique=True)
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    disabled = models.BooleanField(default=False)
+    added_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     history = HistoricalRecords()
-    discord_webhook = models.ForeignKey(DiscordSetting, on_delete=models.CASCADE)
+
+    class Meta(auto_prefetch.Model.Meta):
+        verbose_name: str = "Webhook"
+        verbose_name_plural: str = "Webhooks"
+        ordering: tuple[Literal["url"]] = ("url",)
 
     def __str__(self) -> str:
-        return f"Subscription: {self.user.username} - {self.game.display_name} - {self.discord_webhook.name}"
+        return self.url

@@ -59,17 +59,37 @@ a:hover {
 /* Table of games to the left */
 .toc {
     top: 1rem;
+
+    max-height: 80vh;
+    /* Adjust this value as needed */
+    overflow-y: auto;
 }
 
 /* Checkboxes for subscribing to notifications */
 /* Checked */
 .form-check-input:checked {
     background-color: #af1548;
-    border-color: #111111;
+    border: 1px solid #af1548;
 }
 
 /* Unchecked */
 .form-check-input {
-    background-color: #0c0c0c;
-    border-color: #111111;
+    background-color: #1b1b1b;
+}
+
+.plain-text-item {
+    color: inherit;
+    text-decoration: none;
+    background-color: transparent;
+    border: none;
+}
+
+.plain-text-item:hover {
+    color: inherit;
+    background-color: #af1548;
+
+}
+
+.plain-text-item.active {
+    background-color: #af1548;
 }

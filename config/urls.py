@@ -21,7 +21,6 @@ app_name: str = "config"
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path(route="admin/", view=admin.site.urls),
-    path(route="accounts/", view=include(arg="allauth.urls")),
     path(route="", view=include(arg="core.urls")),
     path(route="api/", view=api.urls),
 ]
