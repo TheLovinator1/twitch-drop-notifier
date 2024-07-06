@@ -1,17 +1,17 @@
 {
-    "cSpell.words": [
-        "allauth",
-        "appendonly",
-        "asgiref",
-        "forloop",
-        "logdir",
-        "memlock",
-        "networkidle",
-        "PGID",
-        "PUID",
-        "requirepass",
-        "socialaccount",
-        "ttvdrops",
-        "ulimits"
-    ]
+  "cSpell.words": [
+    "allauth",
+    "appendonly",
+    "asgiref",
+    "forloop",
+    "logdir",
+    "memlock",
+    "networkidle",
+    "PGID",
+    "PUID",
+    "requirepass",
+    "socialaccount",
+    "ttvdrops",
+    "ulimits"
+  ]
 }

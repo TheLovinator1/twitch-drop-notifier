@@ -86,9 +86,7 @@ class DropCampaignSchema(Schema):
 
 # http://localhost:8000/api/twitch/organizations
 @router.get("/organizations", response=list[OrganizationSchema])
-def get_organizations(
-    request: HttpRequest,  # noqa: ARG001
-) -> BaseManager[Organization]:
+def get_organizations(request: HttpRequest) -> BaseManager[Organization]:  # noqa: ARG001
     """Get all organizations."""
     return Organization.objects.all()
 
@@ -109,17 +107,13 @@ def get_drop_benefits(request: HttpRequest) -> BaseManager[DropBenefit]:  # noqa
 
 # http://localhost:8000/api/twitch/drop_campaigns
 @router.get("/drop_campaigns", response=list[DropCampaignSchema])
-def get_drop_campaigns(
-    request: HttpRequest,  # noqa: ARG001
-) -> BaseManager[DropCampaign]:
+def get_drop_campaigns(request: HttpRequest) -> BaseManager[DropCampaign]:  # noqa: ARG001
     """Get all drop campaigns."""
     return DropCampaign.objects.all()
 
 
 # http://localhost:8000/api/twitch/time_based_drops
 @router.get("/time_based_drops", response=list[TimeBasedDropSchema])
-def get_time_based_drops(
-    request: HttpRequest,  # noqa: ARG001
-) -> BaseManager[TimeBasedDrop]:
+def get_time_based_drops(request: HttpRequest) -> BaseManager[TimeBasedDrop]:  # noqa: ARG001
     """Get all time-based drops."""
     return TimeBasedDrop.objects.all()

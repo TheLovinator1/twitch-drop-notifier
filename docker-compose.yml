@@ -6,7 +6,7 @@ services:
     restart: always
     ulimits:
       memlock: -1
-    command: ["--auth", "Password", "--password", "${GARNET_PASSWORD}", "--storage-tier", "--logdir", "/logs", "--aof", "--port", "6380"]
+    command: [ "--auth", "Password", "--password", "${GARNET_PASSWORD}", "--storage-tier", "--logdir", "/logs", "--aof", "--port", "6380" ]
     ports:
       - "6380:6380"
     volumes:

@@ -1,5 +1,6 @@
 djlint
+pip
 pre-commit
-ruff
 pytest
 pytest-django
+ruff

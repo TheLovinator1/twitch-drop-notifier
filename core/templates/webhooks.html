@@ -2,22 +2,27 @@
 {% block content %}
     <div class="container">
         <h1 class="my-4">Add Discord Webhook</h1>
-        <form method="post" class="needs-validation" novalidate>
-            {% csrf_token %}
-            {{ form.non_field_errors }}
-            <div class="mb-3">
-                {{ form.webhook_url.errors }}
-                <label for="{{ form.webhook_url.id_for_label }}" class="form-label">{{ form.webhook_url.label }}</label>
-                <input type="url"
-                       name="webhook_url"
-                       required=""
-                       class="form-control"
-                       aria-describedby="id_webhook_url_helptext"
-                       id="id_webhook_url">
-                <div class="form-text text-muted">{{ form.webhook_url.help_text }}</div>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Webhook</button>
-        </form>
+        <div class="card card-body mb-3">
+            Webhooks will be saved in a cookie and will be sent to the server when you subscribe to a drop.
+        </div>
+        <div>
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <div class="mb-3">
+                    {{ form.webhook_url.errors }}
+                    <label for="{{ form.webhook_url.id_for_label }}" class="form-label">{{ form.webhook_url.label }}</label>
+                    <input type="url"
+                           name="webhook_url"
+                           required=""
+                           class="form-control"
+                           aria-describedby="id_webhook_url_helptext"
+                           id="id_webhook_url">
+                    <div class="form-text text-muted">{{ form.webhook_url.help_text }}</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Webhook</button>
+            </form>
+        </div>
         <h2 class="mt-5">Webhooks</h2>
         {% if webhooks %}
             <ul class="list-group mt-3">

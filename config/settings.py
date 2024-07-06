@@ -8,7 +8,6 @@ from platformdirs import user_data_dir
 
 load_dotenv(dotenv_path=find_dotenv(), verbose=True)
 
-
 DATA_DIR = Path(
     user_data_dir(
         appname="TTVDrops",
@@ -27,7 +26,6 @@ sentry_sdk.init(
     traces_sample_rate=0.2,
     profiles_sample_rate=0.2,
 )
-
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
@@ -88,7 +86,6 @@ MIDDLEWARE: list[str] = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
 ]
-
 
 TEMPLATES = [
     {

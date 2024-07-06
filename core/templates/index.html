@@ -107,16 +107,16 @@
             </div>
         </div>
         <script type="module">
-            const scrollSpy = new bootstrap.ScrollSpy(document.body, {
-                target: '.toc'
-            })
+        const scrollSpy = new bootstrap.ScrollSpy(document.body, {
+            target: '.toc'
+        })
 
-            document.body.addEventListener('activate.bs.scrollspy', function (event) {
-                const activeItem = document.querySelector('.toc .active');
-                if (activeItem) {
-                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                }
-            });
+        document.body.addEventListener('activate.bs.scrollspy', function (event) {
+            const activeItem = document.querySelector('.toc .active');
+            if (activeItem) {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            }
+        });
         </script>
     </body>
 {% endblock content %}

@@ -8,7 +8,6 @@ httpx
 pillow
 platformdirs
 playwright
-psycopg[binary]
 python-dotenv
 sentry-sdk[django]
 whitenoise[brotli]

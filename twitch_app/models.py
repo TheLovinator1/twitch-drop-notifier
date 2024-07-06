@@ -1,3 +1,5 @@
+from typing import Literal
+
 import auto_prefetch
 from django.db import models
 from django.db.models import Value
@@ -19,9 +21,9 @@ class Organization(auto_prefetch.Model):
     modified_at = models.DateTimeField(blank=True, null=True, auto_now=True)
 
     class Meta(auto_prefetch.Model.Meta):
-        verbose_name = "Organization"
-        verbose_name_plural = "Organizations"
-        ordering = ("name",)
+        verbose_name: str = "Organization"
+        verbose_name_plural: str = "Organizations"
+        ordering: tuple[Literal["name"]] = ("name",)
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -55,9 +57,9 @@ class Game(auto_prefetch.Model):
     history = HistoricalRecords()
 
     class Meta(auto_prefetch.Model.Meta):
-        verbose_name = "Game"
-        verbose_name_plural = "Games"
-        ordering = ("display_name",)
+        verbose_name: str = "Game"
+        verbose_name_plural: str = "Games"
+        ordering: tuple[Literal["display_name"]] = ("display_name",)
 
     def __str__(self) -> str:
         return self.display_name or self.slug or self.id
@@ -83,9 +85,9 @@ class DropBenefit(auto_prefetch.Model):
     history = HistoricalRecords()
 
     class Meta(auto_prefetch.Model.Meta):
-        verbose_name = "Drop Benefit"
-        verbose_name_plural = "Drop Benefits"
-        ordering = ("name",)
+        verbose_name: str = "Drop Benefit"
+        verbose_name_plural: str = "Drop Benefits"
+        ordering: tuple[Literal["name"]] = ("name",)
 
     def __str__(self) -> str:
         return f"{self.owner_organization.name} - {self.game.display_name} - {self.name}"
@@ -106,9 +108,9 @@ class TimeBasedDrop(auto_prefetch.Model):
     history = HistoricalRecords()
 
     class Meta(auto_prefetch.Model.Meta):
-        verbose_name = "Time-Based Drop"
-        verbose_name_plural = "Time-Based Drops"
-        ordering = ("name",)
+        verbose_name: str = "Time-Based Drop"
+        verbose_name_plural: str = "Time-Based Drops"
+        ordering: tuple[Literal["name"]] = ("name",)
 
     def __str__(self) -> str:
         return f"{self.benefits.first()} - {self.name}"
@@ -145,9 +147,9 @@ class DropCampaign(auto_prefetch.Model):
     history = HistoricalRecords()
 
     class Meta(auto_prefetch.Model.Meta):
-        verbose_name = "Drop Campaign"
-        verbose_name_plural = "Drop Campaigns"
-        ordering = ("name",)
+        verbose_name: str = "Drop Campaign"
+        verbose_name_plural: str = "Drop Campaigns"
+        ordering: tuple[Literal["name"]] = ("name",)
 
     def __str__(self) -> str:
         return f"{self.owner.name} - {self.game.display_name} - {self.name}"

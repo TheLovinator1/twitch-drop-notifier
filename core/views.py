@@ -11,7 +11,6 @@ from django.contrib import messages
 from django.http.response import HttpResponse
 from django.template.response import TemplateResponse
 from django.views.generic import FormView, ListView
-from httpx._models import Response
 
 from twitch_app.models import (
     DropBenefit,
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
     from httpx import Response
 
 logger: logging.Logger = logging.getLogger(__name__)
-
 
 cache_dir: Path = settings.DATA_DIR / "cache"
 cache_dir.mkdir(exist_ok=True, parents=True)
@@ -284,7 +282,7 @@ class WebhooksView(FormView):
 
         webhooks.append(webhook)
         response: HttpResponse = self.render_to_response(self.get_context_data(form=form))
-        response.set_cookie(key="webhooks", value=",".join(webhooks), max_age=60 * 60 * 24 * 365)
+        response.set_cookie(key="webhooks", value=",".join(webhooks), max_age=315360000)  # 10 years
 
         messages.success(self.request, "Webhook successfully added.")
         return response
