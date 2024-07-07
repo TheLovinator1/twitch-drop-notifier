@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
     <body data-bs-spy="scroll"
           data-bs-target=".toc"
@@ -6,173 +7,15 @@
           tabindex="0">
         <div class="container mt-4">
             <div class="row">
-                <div class="col-lg-3">
-                    <div class="position-sticky d-none d-lg-block toc">
-                        <div class="card">
-                            <div class="card-body">
-                                <div id="toc-list" class="list-group">
-                                    <a class="list-group-item list-group-item-action plain-text-item"
-                                       href="#info-box">Information</a>
-                                    {% for game in games %}
-                                        <a class="list-group-item list-group-item-action plain-text-item"
-                                           href="#game-{{ game.game_id }}">{{ game.display_name }}</a>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="col-lg-3">{% include "partials/toc.html" %}</div>
                 <div class="col-lg-9">
-                    <div class="card mb-4 shadow-sm" id="info-box">
-                        <div class="row g-0">
-                            <div class="col-md-10">
-                                <div class="card-body">
-                                    <h2 class="card-title h2">Information</h2>
-                                    <div class="mb-3">
-                                        <p>
-                                            This site allows users to subscribe to Twitch drops. You can either get notified when the website finds a new drop on the Twitch site or get notified when the drops begin to be farmable.
-                                        </p>
-                                        <p>
-                                            You can add a Discord Webhook <a href="{% url 'core:webhooks' %}">here</a>.
-                                        </p>
-                                    </div>
-                                    <div class="mt-auto">
-                                        <h3 class="h4">Webhooks</h3>
-                                        {% for webhook in webhooks %}
-                                            <div class="mt-3">
-                                                <img src="{{ webhook.avatar }}?size=32"
-                                                     alt="{{ webhook.name }}"
-                                                     class="rounded-circle"
-                                                     height="32"
-                                                     width="32">
-                                                <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="new-drop-switch-daily">
-                                                    <label class="form-check-label" for="new-drop-switch-daily">Daily notification of newly added games to TTVdrops</label>
-                                                </div>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="new-drop-switch-weekly">
-                                                    <label class="form-check-label" for="new-drop-switch-weekly">
-                                                        Weekly notification of newly added games to TTVdrops
-                                                    </label>
-                                                </div>
-                                                <br>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="new-org-switch-daily">
-                                                    <label class="form-check-label" for="new-org-switch-daily">
-                                                        Daily notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                                    </label>
-                                                </div>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="new-org-switch-weekly">
-                                                    <label class="form-check-label" for="new-org-switch-weekly">
-                                                        Weekly notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {% include "partials/info_box.html" %}
                     {% for game in games %}
-                        <div class="card mb-4 shadow-sm" id="game-{{ game.game_id }}">
-                            <div class="row g-0">
-                                <div class="col-md-2">
-                                    <img src="{{ game.image_url }}"
-                                         alt="{{ game.display_name }}"
-                                         class="img-fluid rounded-start"
-                                         height="283"
-                                         width="212"
-                                         loading="lazy">
-                                </div>
-                                <div class="col-md-10">
-                                    <div class="card-body">
-                                        <h2 class="card-title h5">
-                                            <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
-                                        </h2>
-                                        <div class="mt-auto">
-                                            {% for webhook in webhooks %}
-                                                <div>
-                                                    <img src="{{ webhook.avatar }}?size=32"
-                                                         alt="{{ webhook.name }}"
-                                                         class="rounded-circle"
-                                                         height="32"
-                                                         width="32">
-                                                    <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="new-drop-switch">
-                                                        <label class="form-check-label" for="new-drop-switch">Enable new drop notifications</label>
-                                                    </div>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="live-drop-switch">
-                                                        <label class="form-check-label" for="live-drop-switch">Enable live drop notifications</label>
-                                                    </div>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                        {% for campaign in game.campaigns %}
-                                            {% if not forloop.first %}<br>{% endif %}
-                                            <div class="mt-3">
-                                                <h3 class="h6">{{ campaign.name }}</h3>
-                                                <p class="mb-2 text-muted">
-                                                    Ends in: <abbr title="{{ campaign.start_at|date:'l d F H:i' }} - {{ campaign.end_at|date:'l d F H:i e' }}">{{ campaign.end_at|timeuntil }}</abbr>
-                                                </p>
-                                                {% if campaign.description != campaign.name %}
-                                                    {% if campaign.description|length > 100 %}
-                                                        <p>
-                                                            <a class="btn btn-link p-0 text-muted"
-                                                               data-bs-toggle="collapse"
-                                                               href="#collapseDescription{{ campaign.drop_id }}"
-                                                               role="button"
-                                                               aria-expanded="false"
-                                                               aria-controls="collapseDescription{{ campaign.drop_id }}"
-                                                               aria-label="Show Description">Show
-                                                            Description</a>
-                                                        </p>
-                                                        <div class="collapse" id="collapseDescription{{ campaign.drop_id }}">
-                                                            <div class="card card-body">{{ campaign.description }}</div>
-                                                            <br>
-                                                        </div>
-                                                    {% else %}
-                                                        <p>{{ campaign.description }}</p>
-                                                    {% endif %}
-                                                {% endif %}
-                                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-                                                    {% for drop in campaign.drops %}
-                                                        <div class="col d-flex align-items-center position-relative">
-                                                            <img src="{{ drop.image_url }}"
-                                                                 alt="{{ drop.name }} drop image"
-                                                                 class="img-fluid rounded me-3"
-                                                                 height="50"
-                                                                 width="50"
-                                                                 loading="lazy">
-                                                            {{ drop.name }}
-                                                        </div>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {% include "partials/game_card.html" %}
                     {% endfor %}
                 </div>
             </div>
         </div>
-        <script type="module">
-        const scrollSpy = new bootstrap.ScrollSpy(document.body, {
-            target: '.toc'
-        })
-
-        document.body.addEventListener('activate.bs.scrollspy', function (event) {
-            const activeItem = document.querySelector('.toc .active');
-            if (activeItem) {
-                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-            }
-        });
-        </script>
+        <script src="{% static 'js/index.js' %}"></script>
     </body>
 {% endblock content %}

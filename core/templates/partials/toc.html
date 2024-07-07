@@ -1,0 +1,14 @@
+<div class="position-sticky d-none d-lg-block toc">
+    <div class="card">
+        <div class="card-body">
+            <div id="toc-list" class="list-group">
+                <a class="list-group-item list-group-item-action plain-text-item"
+                   href="#info-box">Information</a>
+                {% for game in games %}
+                    <a class="list-group-item list-group-item-action plain-text-item"
+                       href="#game-{{ game.game_id }}">{{ game.display_name }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
