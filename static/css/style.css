@@ -93,3 +93,7 @@ a:hover {
 .plain-text-item.active {
     background-color: #af1548;
 }
+
+.subscribe-text {
+    color: #af1548;
+}

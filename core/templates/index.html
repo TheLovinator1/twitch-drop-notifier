@@ -10,7 +10,6 @@
                     <div class="position-sticky d-none d-lg-block toc">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">Games</h5>
                                 <div id="toc-list" class="list-group">
                                     {% for game in games %}
                                         <a class="list-group-item list-group-item-action plain-text-item"
@@ -39,22 +38,24 @@
                                             <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
                                         </h2>
                                         <div class="mt-auto">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input"
-                                                       type="checkbox"
-                                                       role="switch"
-                                                       id="new-{{ game.game_id }}">
-                                                <label class="form-check-label" for="new-{{ game.game_id }}">
-                                                    Notify when new drop is found on <a href="https://www.twitch.tv/drops/campaigns">Twitch</a>
-                                                </label>
-                                            </div>
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input"
-                                                       type="checkbox"
-                                                       role="switch"
-                                                       id="live-{{ game.game_id }}">
-                                                <label class="form-check-label" for="live-{{ game.game_id }}">Notify when a drop starts</label>
-                                            </div>
+                                            {% for webhook in webhooks %}
+                                                <div>
+                                                    <img src="{{ webhook.avatar }}?size=32"
+                                                         alt="{{ webhook.name }}"
+                                                         class="rounded-circle"
+                                                         height="32"
+                                                         width="32">
+                                                    <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="new-drop-switch">
+                                                        <label class="form-check-label" for="new-drop-switch">Enable new drop notifications</label>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="live-drop-switch">
+                                                        <label class="form-check-label" for="live-drop-switch">Enable live drop notifications</label>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
                                         </div>
                                         {% for campaign in game.campaigns %}
                                             {% if not forloop.first %}<br>{% endif %}

@@ -83,6 +83,34 @@ class GameContext:
     slug: str | None = None
 
 
+def get_avatar(webhook_response: Response) -> str:
+    """Get the avatar URL from the webhook response."""
+    avatar: str = "https://cdn.discordapp.com/embed/avatars/0.png"
+    if webhook_response.is_success and webhook_response.json().get("id") and webhook_response.json().get("avatar"):
+        avatar = f'https://cdn.discordapp.com/avatars/{webhook_response.json().get("id")}/{webhook_response.json().get("avatar")}.png'
+    return avatar
+
+
+def get_webhook_data(webhook: str) -> WebhookData:
+    """Get the webhook data."""
+    with hishel.CacheClient(storage=storage, controller=controller) as client:
+        webhook_response: Response = client.get(url=webhook, extensions={"cache_metadata": True})
+
+    return WebhookData(
+        name=webhook_response.json().get("name") if webhook_response.is_success else "Unknown",
+        url=webhook,
+        avatar=get_avatar(webhook_response),
+        status="Success" if webhook_response.is_success else "Failed",
+        response=webhook_response.text,
+    )
+
+
+def get_webhooks(request: HttpRequest) -> list[str]:
+    """Get the webhooks from the cookie."""
+    cookie: str = request.COOKIES.get("webhooks", "")
+    return list(filter(None, cookie.split(",")))
+
+
 def fetch_games() -> list[Game]:
     """Fetch all games with necessary fields."""
     return list(Game.objects.all().only("id", "image_url", "display_name", "slug"))
@@ -191,11 +219,12 @@ def index(request: HttpRequest) -> HttpResponse:
     """Render the index page."""
     list_of_games: list[GameContext] = prepare_game_contexts()
     sorted_list_of_games: list[GameContext] = sort_games_by_campaign_start(list_of_games)
+    webhooks: list[WebhookData] = [get_webhook_data(webhook) for webhook in get_webhooks(request)]
 
     return TemplateResponse(
         request=request,
         template="index.html",
-        context={"games": sorted_list_of_games},
+        context={"games": sorted_list_of_games, "webhooks": webhooks},
     )
 
 
@@ -227,33 +256,10 @@ class WebhooksView(FormView):
     def get_context_data(self: WebhooksView, **kwargs: dict[str, WebhooksView] | DiscordSettingForm) -> dict[str, Any]:
         """Get the context data for the view."""
         context: dict[str, DiscordSettingForm | list[WebhookData]] = super().get_context_data(**kwargs)
-        cookie: str = self.request.COOKIES.get("webhooks", "")
-        webhooks: list[str] = cookie.split(",")
-        webhooks = list(filter(None, webhooks))
-
-        webhook_responses: list[WebhookData] = []
-
-        with hishel.CacheClient(storage=storage, controller=controller) as client:
-            for webhook in webhooks:
-                our_webhook = WebhookData(name="Unknown", url=webhook, status="Failed", response="No response")
-                response: Response = client.get(url=webhook, extensions={"cache_metadata": True})
-                if response.is_success:
-                    our_webhook.name = response.json().get("name", "Unknown")
-                    our_webhook.status = "Success"
-                else:
-                    our_webhook.status = "Failed"
-
-                our_webhook.response = response.text
-
-                if response.json().get("id") and response.json().get("avatar"):
-                    avatar_url: str = f'https://cdn.discordapp.com/avatars/{response.json().get("id")}/{response.json().get("avatar")}.png'
-
-                our_webhook.avatar = avatar_url or "https://cdn.discordapp.com/embed/avatars/0.png"
-
-                webhook_responses.append(our_webhook)
+        webhooks: list[str] = get_webhooks(self.request)
 
         context.update({
-            "webhooks": webhook_responses,
+            "webhooks": [get_webhook_data(webhook) for webhook in webhooks],
             "form": DiscordSettingForm(),
         })
         return context
