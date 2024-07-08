@@ -43,6 +43,10 @@ STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
 
+if DEBUG:
+    INTERNAL_IPS: list[str] = ["127.0.0.1"]
+
+
 if not DEBUG:
     ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space"]
 
@@ -73,10 +77,13 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "ninja",
     "simple_history",
+    "debug_toolbar",
 ]
 
 MIDDLEWARE: list[str] = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
