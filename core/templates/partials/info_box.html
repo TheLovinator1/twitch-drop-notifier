@@ -5,47 +5,11 @@
                 <h2 class="card-title h2">Information</h2>
                 <div class="mb-3">
                     <p>
-                        This site allows users to subscribe to Twitch drops. You can either get notified when the website finds a new drop on the Twitch site or get notified when the drops begin to be farmable.
+                        This site allows users to subscribe to Twitch drops notifications. You can choose to be alerted when new drops are found on Twitch or when the drops become available for farming.
                     </p>
                     <p>
                         You can add a Discord Webhook <a href="{% url 'core:webhooks' %}">here</a>.
                     </p>
-                </div>
-                <div class="mt-auto">
-                    <h3 class="h4">Webhooks</h3>
-                    {% for webhook in webhooks %}
-                        <div class="mt-3">
-                            <img src="{{ webhook.avatar }}?size=32"
-                                 alt="{{ webhook.name }}"
-                                 class="rounded-circle"
-                                 height="32"
-                                 width="32">
-                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="new-drop-switch-daily">
-                                <label class="form-check-label" for="new-drop-switch-daily">Daily notification of newly added games to TTVdrops</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="new-drop-switch-weekly">
-                                <label class="form-check-label" for="new-drop-switch-weekly">
-                                    Weekly notification of newly added games to TTVdrops
-                                </label>
-                            </div>
-                            <br>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="new-org-switch-daily">
-                                <label class="form-check-label" for="new-org-switch-daily">
-                                    Daily notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                </label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="new-org-switch-weekly">
-                                <label class="form-check-label" for="new-org-switch-weekly">
-                                    Weekly notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                </label>
-                            </div>
-                        </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
