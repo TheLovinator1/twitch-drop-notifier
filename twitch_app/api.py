@@ -5,11 +5,10 @@ from django.http import HttpRequest
 from ninja import Router, Schema
 
 from .models import (
-    DropBenefit,
+    Drop,
     DropCampaign,
     Game,
     Organization,
-    TimeBasedDrop,
 )
 
 router = Router(
@@ -98,13 +97,6 @@ def get_games(request: HttpRequest) -> BaseManager[Game]:  # noqa: ARG001
     return Game.objects.all()
 
 
-# http://localhost:8000/api/twitch/drop_benefits
-@router.get("/drop_benefits", response=list[DropBenefitSchema])
-def get_drop_benefits(request: HttpRequest) -> BaseManager[DropBenefit]:  # noqa: ARG001
-    """Get all drop benefits."""
-    return DropBenefit.objects.all()
-
-
 # http://localhost:8000/api/twitch/drop_campaigns
 @router.get("/drop_campaigns", response=list[DropCampaignSchema])
 def get_drop_campaigns(request: HttpRequest) -> BaseManager[DropCampaign]:  # noqa: ARG001
@@ -112,8 +104,8 @@ def get_drop_campaigns(request: HttpRequest) -> BaseManager[DropCampaign]:  # no
     return DropCampaign.objects.all()
 
 
-# http://localhost:8000/api/twitch/time_based_drops
-@router.get("/time_based_drops", response=list[TimeBasedDropSchema])
-def get_time_based_drops(request: HttpRequest) -> BaseManager[TimeBasedDrop]:  # noqa: ARG001
+# http://localhost:8000/api/twitch/drops
+@router.get("/drops", response=list[TimeBasedDropSchema])
+def get_drops(request: HttpRequest) -> BaseManager[Drop]:  # noqa: ARG001
     """Get all time-based drops."""
-    return TimeBasedDrop.objects.all()
+    return Drop.objects.all()

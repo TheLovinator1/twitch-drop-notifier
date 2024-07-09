@@ -5,6 +5,10 @@
         <div class="row">
             <div class="col-lg-3">{% include "partials/toc.html" %}</div>
             <div class="col-lg-9">
+                {% for org in orgs %}
+                    {{ org }}
+                    fsafa
+                {% endfor %}
                 {% include "partials/info_box.html" %}
                 {% include "partials/news.html" %}
                 {% for game in games %}
