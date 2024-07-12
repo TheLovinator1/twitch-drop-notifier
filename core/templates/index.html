@@ -7,8 +7,13 @@
             <div class="col-lg-9">
                 {% include "partials/info_box.html" %}
                 {% include "partials/news.html" %}
-                {% for game in games %}
-                    {% include "partials/game_card.html" %}
+                {% for org in orgs %}
+                    <h2 id="org-{{ org|slugify }}">
+                        <a href="#org-{{ org|slugify }}">{{ org }}</a>
+                    </h2>
+                    {% for game in org.games.all %}
+                        {% include "partials/game_card.html" %}
+                    {% endfor %}
                 {% endfor %}
             </div>
         </div>
