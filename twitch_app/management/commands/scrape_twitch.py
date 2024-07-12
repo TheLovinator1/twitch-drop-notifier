@@ -160,6 +160,11 @@ class Command(BaseCommand):
         self,
         playwright: Playwright,
     ) -> list[dict[str, typing.Any]]:
+        args = []
+
+        # disable navigator.webdriver:true flag
+        args.append("--disable-blink-features=AutomationControlled")
+
         profile_dir: Path = Path(data_dir / "chrome-profile")
         profile_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(
@@ -168,10 +173,10 @@ class Command(BaseCommand):
         )
 
         browser: BrowserContext = await playwright.chromium.launch_persistent_context(
+            channel="chrome",
             user_data_dir=profile_dir,
             headless=False,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",  # noqa: E501
-            viewport={"width": 1920, "height": 1080},
+            args=args,
         )
         logger.debug("Launched Chrome browser")
 
