@@ -1,7 +1,6 @@
 import logging
 
 from debug_toolbar.toolbar import debug_toolbar_urls
-from django.contrib import admin
 from django.urls import URLPattern, include, path
 from django.urls.resolvers import URLResolver
 from ninja import NinjaAPI
@@ -21,7 +20,6 @@ api.add_router(prefix="/twitch", router=twitch_router)
 app_name: str = "config"
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    path(route="admin/", view=admin.site.urls),
     path(route="", view=include(arg="core.urls")),
     path(route="api/", view=api.urls),
     *debug_toolbar_urls(),
