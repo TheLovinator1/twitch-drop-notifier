@@ -4,9 +4,7 @@ import logging
 
 from django.views.generic import ListView
 
-from twitch_app.models import (
-    Game,
-)
+from twitch_app.models import Game
 
 logger: logging.Logger = logging.getLogger(__name__)
 

@@ -11,9 +11,7 @@ from django.views.generic import FormView
 
 from core.data import WebhookData
 from core.forms import DiscordSettingForm
-from twitch_app.models import (
-    Game,
-)
+from twitch_app.models import Game
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -5,28 +5,16 @@ from typing import TYPE_CHECKING
 
 import hishel
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
 
 from core.data import WebhookData
-from twitch_app.models import (
-    Organization,
-)
+from twitch_app.models import Organization
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from django.db.models.manager import BaseManager
-    from django.http import (
-        HttpRequest,
-        HttpResponse,
-    )
-    from httpx import Response
-if TYPE_CHECKING:
-    from django.http import (
-        HttpRequest,
-        HttpResponse,
-    )
+    from django.http import HttpRequest, HttpResponse
     from httpx import Response
 
 logger: logging.Logger = logging.getLogger(__name__)
