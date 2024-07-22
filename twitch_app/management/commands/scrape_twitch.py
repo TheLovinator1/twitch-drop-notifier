@@ -144,13 +144,13 @@ async def insert_data(data: dict) -> None:  # noqa: C901, PLR0914
                     "image_asset_url": benefit_data.get("imageAssetURL"),
                     "is_ios_available": benefit_data.get("isIosAvailable"),
                     "name": benefit_data.get("name"),
-                    "owner_organization": org,
-                    "game": benefit_game,
                 },
             )
 
             if created:
                 logger.debug("Drop created: %s", drop)
+
+            await sync_to_async(drop.save)()
 
 
 class Command(BaseCommand):
@@ -227,6 +227,9 @@ class Command(BaseCommand):
                 continue
 
             if "dropCampaign" in campaign.get("data", {}).get("user", {}):
+                if not campaign["data"]["user"]["dropCampaign"]:
+                    continue
+
                 await insert_data(campaign)
 
             if "dropCampaigns" in campaign.get("data", {}).get("user", {}):

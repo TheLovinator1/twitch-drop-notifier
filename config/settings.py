@@ -19,13 +19,14 @@ DATA_DIR = Path(
 
 DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
 
-sentry_sdk.init(
-    dsn="https://35519536b56710e51cac49522b2cc29f@o4505228040339456.ingest.sentry.io/4506447308914688",
-    environment="Development" if DEBUG else "Production",
-    send_default_pii=True,
-    traces_sample_rate=0.2,
-    profiles_sample_rate=0.2,
-)
+if not DEBUG:
+    sentry_sdk.init(
+        dsn="https://35519536b56710e51cac49522b2cc29f@o4505228040339456.ingest.sentry.io/4506447308914688",
+        environment="Production",
+        send_default_pii=True,
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.2,
+    )
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
@@ -46,9 +47,8 @@ STATIC_ROOT.mkdir(exist_ok=True)
 if DEBUG:
     INTERNAL_IPS: list[str] = ["127.0.0.1"]
 
-
 if not DEBUG:
-    ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space"]
+    ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space", "localhost"]
 
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
