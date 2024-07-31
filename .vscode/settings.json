@@ -10,8 +10,10 @@
     "PGID",
     "PUID",
     "requirepass",
+    "sitewide",
     "socialaccount",
     "ttvdrops",
-    "ulimits"
+    "ulimits",
+    "xdefiant"
   ]
 }

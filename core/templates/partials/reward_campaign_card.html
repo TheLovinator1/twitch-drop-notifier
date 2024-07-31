@@ -1,0 +1,56 @@
+<div class="card mb-4 shadow-sm" id="campaign-{{ campaign.id }}">
+    <div class="row g-0">
+        <div class="col-md-2">
+            <img src="{{ campaign.image.image1_x_url }}"
+                 alt="{{ campaign.name }}"
+                 class="img-fluid rounded-start"
+                 height="283"
+                 width="212"
+                 loading="lazy">
+        </div>
+        <div class="col-md-10">
+            <div class="card-body">
+                <h2 class="card-title h5">{{ campaign.name }}</h2>
+                <p class="card-text text-muted">{{ campaign.summary }}</p>
+                <p>
+                    Starts at: <abbr title="{{ campaign.starts_at|date:'l d F H:i e' }}">{{ campaign.starts_at }}</abbr>
+                    <br>
+                    Ends at: <abbr title="{{ campaign.ends_at|date:'l d F H:i e' }}">{{ campaign.ends_at|timeuntil }}</abbr>
+                </p>
+                <a href="{{ campaign.external_url }}"
+                   class="btn btn-primary"
+                   target="_blank">Learn More</a>
+                {% if campaign.instructions %}
+                    <div class="mt-3">
+                        <h3 class="h6">Instructions</h3>
+                        <p>{{ campaign.instructions }}</p>
+                    </div>
+                {% endif %}
+                {% if campaign.rewards.exists %}
+                    <div class="mt-3">
+                        <h3 class="h6">Rewards</h3>
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                            {% for reward in campaign.rewards.all %}
+                                <div class="col d-flex align-items-center position-relative">
+                                    <img src="{{ reward.thumbnail_image.image1_x_url }}"
+                                         alt="{{ reward.name }} reward image"
+                                         class="img-fluid rounded me-3"
+                                         height="50"
+                                         width="50"
+                                         loading="lazy">
+                                    <div>
+                                        <strong>{{ reward.name }}</strong>
+                                        <br>
+                                        <a href="{{ reward.redemption_url }}"
+                                           class="btn btn-sm btn-link"
+                                           target="_blank">Redeem</a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

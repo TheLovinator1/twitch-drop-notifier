@@ -7,6 +7,11 @@
             <div class="col-lg-9">
                 {% include "partials/info_box.html" %}
                 {% include "partials/news.html" %}
+                <h2>Reward Campaigns</h2>
+                {% for campaign in reward_campaigns %}
+                    {% include "partials/reward_campaign_card.html" %}
+                {% endfor %}
+                <h2>Organizations</h2>
                 {% for org in orgs %}
                     <h2 id="org-{{ org|slugify }}">
                         <a href="#org-{{ org|slugify }}">{{ org }}</a>

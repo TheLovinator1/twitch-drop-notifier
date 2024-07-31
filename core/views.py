@@ -5,15 +5,16 @@ from typing import TYPE_CHECKING
 
 import hishel
 from django.conf import settings
+from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
+from django.views.generic import ListView
 
 from core.data import WebhookData
-from twitch_app.models import Organization
+from twitch_app.models import Game, RewardCampaign
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from django.db.models.manager import BaseManager
     from django.http import HttpRequest, HttpResponse
     from httpx import Response
 
@@ -59,11 +60,24 @@ def get_webhook_data(webhook: str) -> WebhookData:
 
 def index(request: HttpRequest) -> HttpResponse:
     """Render the index page."""
-    orgs: BaseManager[Organization] = Organization.objects.all()
-    webhooks: list[WebhookData] = [get_webhook_data(webhook) for webhook in get_webhooks(request)]
+    reward_campaigns: BaseManager[RewardCampaign] = RewardCampaign.objects.all()
 
     return TemplateResponse(
         request=request,
         template="index.html",
-        context={"orgs": orgs, "webhooks": webhooks},
+        context={"reward_campaigns": reward_campaigns},
     )
+
+
+class GameView(ListView):
+    model = Game
+    template_name: str = "games.html"
+    context_object_name: str = "games"
+    paginate_by = 100
+
+
+class RewardCampaignView(ListView):
+    model = RewardCampaign
+    template_name: str = "reward_campaigns.html"
+    context_object_name: str = "reward_campaigns"
+    paginate_by = 100

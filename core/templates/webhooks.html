@@ -24,35 +24,5 @@
             </form>
         </div>
         <h2 class="mt-5">Webhooks</h2>
-        {% if webhooks %}
-            <ul class="list-group mt-3">
-                {% for webhook in webhooks %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <img src="{{ webhook.avatar }}?size=32"
-                                 alt="{{ webhook.name }}"
-                                 class="rounded-circle"
-                                 height="32"
-                                 width="32">
-                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                            {% if webhook.status == 'Success' %}
-                                <span class="badge bg-success">Working</span>
-                            {% else %}
-                                <span class="badge bg-danger">Failed</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" action="" class="mb-0">
-                            {% csrf_token %}
-                            <input type="hidden" name="webhook_id" value="{{ webhook.id }}">
-                            <input type="hidden" name="webhook_name" value="{{ webhook.name }}">
-                            <input type="hidden" name="webhook_url" value="{{ webhook.webhook_url }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="text-muted">No webhooks added yet.</p>
-        {% endif %}
     </div>
 {% endblock content %}

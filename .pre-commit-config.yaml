@@ -29,21 +29,21 @@ repos:
 
   # Automatically upgrade your Django project code
   - repo: https://github.com/adamchainz/django-upgrade
-    rev: "1.19.0"
+    rev: "1.20.0"
     hooks:
       - id: django-upgrade
         args: [ --target-version, "5.1" ]
 
   # Run Pyupgrade on all Python files. This will upgrade the code to Python 3.12.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.16.0
+    rev: v3.17.0
     hooks:
       - id: pyupgrade
         args: [ "--py312-plus" ]
 
   # An extremely fast Python linter and formatter.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.1
+    rev: v0.5.5
     hooks:
       - id: ruff-format
       - id: ruff

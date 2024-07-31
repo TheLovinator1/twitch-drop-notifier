@@ -16,7 +16,7 @@ def main() -> None:
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         )
-        raise ImportError(msg) from exc
+        raise ImportError(msg) from exc  # noqa: DOC501, RUF100
     execute_from_command_line(sys.argv)
 
 

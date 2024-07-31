@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import typing
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,17 +11,12 @@ from platformdirs import user_data_dir
 from playwright.async_api import Playwright, async_playwright
 from playwright.async_api._generated import Response
 
-from twitch_app.models import (
-    Drop,
-    DropCampaign,
-    Game,
-    Organization,
-)
+from twitch_app.models import Game, Image, Reward, RewardCampaign, UnlockRequirements
 
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
 
-# Where to store the Firefox profile
+# Where to store the Chrome profile
 data_dir = Path(
     user_data_dir(
         appname="TTVDrops",
@@ -37,120 +33,92 @@ if not data_dir:
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-async def insert_data(data: dict) -> None:  # noqa: C901, PLR0914
-    """Insert data into the database.
-
-    Args:
-        data: The data from Twitch.
-    """
-    user_data: dict = data.get("data", {}).get("user")
-    if not user_data:
-        logger.debug("No user data found")
-        return
-
-    user_data["id"]
-    drop_campaign_data = user_data["dropCampaign"]
-    if not drop_campaign_data:
-        logger.debug("No drop campaign data found")
-        return
-
-    # Create or get the organization
-    owner_data = drop_campaign_data["owner"]
-    owner, created = await sync_to_async(Organization.objects.get_or_create)(
-        id=owner_data["id"],
-        defaults={"name": owner_data["name"]},
-    )
-    if created:
-        logger.debug("Organization created: %s", owner)
-    else:
-        logger.debug("Organization found: %s", owner)
-
-    # Create or get the game
-    game_data = drop_campaign_data["game"]
-    game, created = await sync_to_async(Game.objects.get_or_create)(
-        id=game_data["id"],
-        defaults={
-            "slug": game_data["slug"],
-            "display_name": game_data["displayName"],
-            "organization": owner,
-        },
-    )
-    if created:
-        logger.debug("Game created: %s", game)
-
-    # Create the drop campaign
-    drop_campaign, created = await sync_to_async(DropCampaign.objects.get_or_create)(
-        id=drop_campaign_data["id"],
-        defaults={
-            "account_link_url": drop_campaign_data.get("accountLinkURL"),
-            "description": drop_campaign_data.get("description"),
-            "details_url": drop_campaign_data.get("detailsURL"),
-            "end_at": drop_campaign_data.get("endAt"),
-            "image_url": drop_campaign_data.get("imageURL"),
-            "name": drop_campaign_data.get("name"),
-            "start_at": drop_campaign_data.get("startAt"),
-            "status": drop_campaign_data.get("status"),
-            "game": game,
-        },
-    )
-    if created:
-        logger.debug("Drop campaign created: %s", drop_campaign)
-
-    # Create time-based drops
-    for drop_data in drop_campaign_data["timeBasedDrops"]:
-        drop_benefit_edges = drop_data["benefitEdges"]
-
-        time_based_drop, created = await sync_to_async(Drop.objects.get_or_create)(
-            id=drop_data["id"],
-            defaults={
-                "required_subs": drop_data.get("requiredSubs"),
-                "end_at": drop_data.get("endAt"),
-                "name": drop_data.get("name"),
-                "required_minutes_watched": drop_data.get("requiredMinutesWatched"),
-                "start_at": drop_data.get("startAt"),
-                "drop_campaign": drop_campaign,
-            },
-        )
-        if created:
-            logger.debug("Time-based drop created: %s", time_based_drop)
-
-        for edge in drop_benefit_edges:
-            benefit_data = edge["benefit"]
-            benefit_owner_data = benefit_data["ownerOrganization"]
-
-            org, created = await sync_to_async(
-                Organization.objects.get_or_create,
-            )(
-                id=benefit_owner_data["id"],
-                defaults={"name": benefit_owner_data["name"]},
-            )
-            if created:
-                logger.debug("Organization created: %s", org)
-
-            benefit_game_data = benefit_data["game"]
-            benefit_game, created = await sync_to_async(Game.objects.get_or_create)(
-                id=benefit_game_data["id"],
-                defaults={"display_name": benefit_game_data["name"]},
-            )
-            if created:
-                logger.debug("Benefit game created: %s", benefit_game)
-
-            # Get the drop to add the data to
-            drop, created = await sync_to_async(Drop.objects.get_or_create)(
-                id=drop_data["id"],
+async def add_reward_campaign(json_data: dict) -> None:
+    """Add data from JSON to the database."""
+    for campaign_data in json_data["data"]["rewardCampaignsAvailableToUser"]:
+        # Add or get Game
+        game_data = campaign_data["game"]
+        if game_data:
+            game, _ = await sync_to_async(Game.objects.get_or_create)(
+                id=game_data["id"],
+                slug=game_data["slug"],
                 defaults={
-                    "created_at": benefit_data.get("createdAt"),
-                    "entitlement_limit": benefit_data.get("entitlementLimit"),
-                    "image_asset_url": benefit_data.get("imageAssetURL"),
-                    "is_ios_available": benefit_data.get("isIosAvailable"),
-                    "name": benefit_data.get("name"),
+                    "display_name": game_data["displayName"],
+                    "typename": game_data["__typename"],
                 },
             )
+        else:
+            logger.warning("%s is not for a game?", campaign_data["name"])
+            game = None
 
-            if created:
-                logger.debug("Drop created: %s", drop)
+        # Add or get Image
+        image_data = campaign_data["image"]
+        image, _ = await sync_to_async(Image.objects.get_or_create)(
+            image1_x_url=image_data["image1xURL"],
+            defaults={"typename": image_data["__typename"]},
+        )
 
-            await sync_to_async(drop.save)()
+        # Create Reward instances
+        rewards = []
+        for reward_data in campaign_data["rewards"]:
+            banner_image_data = reward_data["bannerImage"]
+            banner_image, _ = await sync_to_async(Image.objects.get_or_create)(
+                image1_x_url=banner_image_data["image1xURL"],
+                defaults={"typename": banner_image_data["__typename"]},
+            )
+
+            thumbnail_image_data = reward_data["thumbnailImage"]
+            thumbnail_image, _ = await sync_to_async(Image.objects.get_or_create)(
+                image1_x_url=thumbnail_image_data["image1xURL"],
+                defaults={"typename": thumbnail_image_data["__typename"]},
+            )
+
+            reward, _ = await sync_to_async(Reward.objects.get_or_create)(
+                id=reward_data["id"],
+                name=reward_data["name"],
+                banner_image=banner_image,
+                thumbnail_image=thumbnail_image,
+                earnable_until=datetime.fromisoformat(reward_data["earnableUntil"].replace("Z", "+00:00")),
+                redemption_instructions=reward_data["redemptionInstructions"],
+                redemption_url=reward_data["redemptionURL"],
+                typename=reward_data["__typename"],
+            )
+            rewards.append(reward)
+
+        # Add or get Unlock Requirements
+        unlock_requirements_data = campaign_data["unlockRequirements"]
+        _, _ = await sync_to_async(UnlockRequirements.objects.get_or_create)(
+            subs_goal=unlock_requirements_data["subsGoal"],
+            defaults={
+                "minute_watched_goal": unlock_requirements_data["minuteWatchedGoal"],
+                "typename": unlock_requirements_data["__typename"],
+            },
+        )
+
+        # Create Reward Campaign
+        reward_campaign, _ = await sync_to_async(RewardCampaign.objects.get_or_create)(
+            id=campaign_data["id"],
+            name=campaign_data["name"],
+            brand=campaign_data["brand"],
+            starts_at=datetime.fromisoformat(campaign_data["startsAt"].replace("Z", "+00:00")),
+            ends_at=datetime.fromisoformat(campaign_data["endsAt"].replace("Z", "+00:00")),
+            status=campaign_data["status"],
+            summary=campaign_data["summary"],
+            instructions=campaign_data["instructions"],
+            external_url=campaign_data["externalURL"],
+            reward_value_url_param=campaign_data["rewardValueURLParam"],
+            about_url=campaign_data["aboutURL"],
+            is_sitewide=campaign_data["isSitewide"],
+            game=game,
+            image=image,
+            typename=campaign_data["__typename"],
+        )
+
+        # Add Rewards to the Campaign
+        for reward in rewards:
+            await sync_to_async(reward_campaign.rewards.add)(reward)
+
+        await sync_to_async(reward_campaign.save)()
 
 
 class Command(BaseCommand):
@@ -217,7 +185,7 @@ class Command(BaseCommand):
         logger.debug("Page loaded. Scraping data...")
 
         # Wait 5 seconds for the page to load
-        await asyncio.sleep(5)
+        # await asyncio.sleep(5)
 
         await browser.close()
 
@@ -226,14 +194,16 @@ class Command(BaseCommand):
             if not isinstance(campaign, dict):
                 continue
 
-            if "dropCampaign" in campaign.get("data", {}).get("user", {}):
+            if "rewardCampaignsAvailableToUser" in campaign["data"]:
+                await add_reward_campaign(campaign)
+
+            if "dropCampaign" in campaign.get("data", {}).get("user", {}):  # noqa: SIM102
                 if not campaign["data"]["user"]["dropCampaign"]:
                     continue
 
-                await insert_data(campaign)
-
             if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
-                await insert_data(campaign)
+                msg = "Multiple dropCampaigns not supported"
+                raise NotImplementedError(msg)
 
         return json_data
 
