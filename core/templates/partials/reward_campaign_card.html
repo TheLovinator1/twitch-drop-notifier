@@ -10,12 +10,12 @@
         </div>
         <div class="col-md-10">
             <div class="card-body">
-                <h2 class="card-title h5">{{ campaign.name }}</h2>
+                <h2 class="card-title h5" id="#reward-{{ campaign.id }}">
+                    <a href="#campaign-{{ campaign.id }}" class="plain-text-item">{{ campaign.name }}</a>
+                </h2>
                 <p class="card-text text-muted">{{ campaign.summary }}</p>
-                <p>
-                    Starts at: <abbr title="{{ campaign.starts_at|date:'l d F H:i e' }}">{{ campaign.starts_at }}</abbr>
-                    <br>
-                    Ends at: <abbr title="{{ campaign.ends_at|date:'l d F H:i e' }}">{{ campaign.ends_at|timeuntil }}</abbr>
+                <p class="mb-2 text-muted">
+                    Ends in: <abbr title="{{ campaign.starts_at|date:'l d F H:i' }} - {{ campaign.ends_at|date:'l d F H:i e' }}">{{ campaign.ends_at|timeuntil }}</abbr>
                 </p>
                 <a href="{{ campaign.external_url }}"
                    class="btn btn-primary"
@@ -40,10 +40,6 @@
                                          loading="lazy">
                                     <div>
                                         <strong>{{ reward.name }}</strong>
-                                        <br>
-                                        <a href="{{ reward.redemption_url }}"
-                                           class="btn btn-sm btn-link"
-                                           target="_blank">Redeem</a>
                                     </div>
                                 </div>
                             {% endfor %}

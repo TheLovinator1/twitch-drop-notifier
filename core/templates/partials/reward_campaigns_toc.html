@@ -1,0 +1,12 @@
+<div class="position-sticky d-none d-lg-block toc">
+    <div class="card">
+        <div class="card-body">
+            <div id="toc-list" class="list-group">
+                {% for campaign in reward_campaigns %}
+                <a class="list-group-item list-group-item-action plain-text-item"
+                href="#reward-{{ campaign.id }}">{{ campaign }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>

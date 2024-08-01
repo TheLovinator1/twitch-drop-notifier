@@ -279,10 +279,12 @@ async def add_drop_campaign(json_data: dict) -> None:
     # Add channels to Allow
     if allow:
         channel_data: list[dict] = allow_data.get("channels", [])
-        for json_channel in channel_data:
-            channel, _ = await add_or_get_channel(json_channel)
-            if channel:
-                await allow.channels.aadd(channel)
+
+        if channel_data:
+            for json_channel in channel_data:
+                channel, _ = await add_or_get_channel(json_channel)
+                if channel:
+                    await allow.channels.aadd(channel)
 
     # Add or get TimeBasedDrops
     time_based_drops_data = drop_campaign_data.get("timeBasedDrops", [])
@@ -446,13 +448,13 @@ async def add_reward_campaign(json_data: dict) -> None:
             defaults={
                 "name": campaign.get("name"),
                 "brand": campaign.get("brand"),
-                "starts_at": campaign.get("startAt"),
-                "ends_at": campaign.get("endAt"),
+                "starts_at": campaign.get("startsAt"),
+                "ends_at": campaign.get("endsAt"),
                 "status": campaign.get("status"),
                 "summary": campaign.get("summary"),
                 "instructions": campaign.get("instructions"),
                 "external_url": campaign.get("externalURL"),
-                "reward_value_url_params": campaign.get("rewardValueURLParams"),
+                "reward_value_url_param": campaign.get("rewardValueURLParam"),
                 "about_url": campaign.get("aboutURL"),
                 "is_sitewide": campaign.get("isSitewide"),
                 "game": game,
@@ -477,7 +479,7 @@ class Command(BaseCommand):
         self,
         playwright: Playwright,
     ) -> list[dict[str, typing.Any]]:
-        args = []
+        args: list[str] = []
 
         # disable navigator.webdriver:true flag
         args.append("--disable-blink-features=AutomationControlled")
@@ -546,13 +548,15 @@ class Command(BaseCommand):
             if "rewardCampaignsAvailableToUser" in campaign["data"]:
                 await add_reward_campaign(campaign)
 
-            if "dropCampaign" in campaign.get("data", {}).get("user", {}):  # noqa: SIM102
+            if "dropCampaign" in campaign.get("data", {}).get("user", {}):
                 if not campaign["data"]["user"]["dropCampaign"]:
+                    logger.warning("No drop campaign found")
                     continue
+                await add_drop_campaign(campaign)
 
             if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
-                msg = "Multiple dropCampaigns not supported"
-                raise NotImplementedError(msg)
+                for drop_campaign in campaign["data"]["user"]["dropCampaigns"]:
+                    await add_drop_campaign(drop_campaign)
 
         return json_data
 

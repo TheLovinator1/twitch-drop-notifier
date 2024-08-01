@@ -1,7 +1,8 @@
+import auto_prefetch
 from django.db import models
 
 
-class Game(models.Model):
+class Game(auto_prefetch.Model):
     """The game that the reward is for.
 
     Used for reward campaigns (buy subs) and drop campaigns (watch games).
@@ -33,7 +34,7 @@ class Game(models.Model):
         return f"https://www.twitch.tv/directory/game/{self.slug}"
 
 
-class Image(models.Model):
+class Image(auto_prefetch.Model):
     """An image model representing URLs and type.
 
     Attributes:
@@ -54,7 +55,7 @@ class Image(models.Model):
         return self.image1_x_url or "Unknown"
 
 
-class Reward(models.Model):
+class Reward(auto_prefetch.Model):
     """The actual reward you get when you complete the requirements.
 
     Attributes:
@@ -88,8 +89,13 @@ class Reward(models.Model):
 
     id = models.TextField(primary_key=True)
     name = models.TextField(null=True, blank=True)
-    banner_image = models.ForeignKey(Image, related_name="banner_rewards", on_delete=models.CASCADE, null=True)
-    thumbnail_image = models.ForeignKey(Image, related_name="thumbnail_rewards", on_delete=models.CASCADE, null=True)
+    banner_image = auto_prefetch.ForeignKey(Image, related_name="banner_rewards", on_delete=models.CASCADE, null=True)
+    thumbnail_image = auto_prefetch.ForeignKey(
+        Image,
+        related_name="thumbnail_rewards",
+        on_delete=models.CASCADE,
+        null=True,
+    )
     earnable_until = models.DateTimeField(null=True)
     redemption_instructions = models.TextField(null=True, blank=True)
     redemption_url = models.URLField(null=True, blank=True)
@@ -99,7 +105,7 @@ class Reward(models.Model):
         return self.name or "Unknown"
 
 
-class UnlockRequirements(models.Model):
+class UnlockRequirements(auto_prefetch.Model):
     """Requirements to unlock a reward.
 
     Attributes:
@@ -115,15 +121,15 @@ class UnlockRequirements(models.Model):
         }
     """
 
-    subs_goal = models.PositiveBigIntegerField(null=True)
-    minute_watched_goal = models.PositiveBigIntegerField(null=True)
+    subs_goal = models.TextField(null=True)
+    minute_watched_goal = models.TextField(null=True)
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f"{self.subs_goal} subs and {self.minute_watched_goal} minutes watched"
 
 
-class RewardCampaign(models.Model):
+class RewardCampaign(auto_prefetch.Model):
     """Represents a reward campaign.
 
     Attributes:
@@ -207,14 +213,14 @@ class RewardCampaign(models.Model):
     reward_value_url_param = models.TextField(null=True, blank=True)
     about_url = models.URLField(null=True, blank=True)
     is_sitewide = models.BooleanField(null=True)
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
-    unlock_requirements = models.ForeignKey(
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
+    unlock_requirements = auto_prefetch.ForeignKey(
         UnlockRequirements,
         on_delete=models.CASCADE,
         related_name="reward_campaigns",
         null=True,
     )
-    image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
+    image = auto_prefetch.ForeignKey(Image, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
     rewards = models.ManyToManyField(Reward, related_name="reward_campaigns")
     typename = models.TextField(null=True, blank=True)
 
@@ -222,7 +228,7 @@ class RewardCampaign(models.Model):
         return self.name or "Unknown"
 
 
-class Channel(models.Model):
+class Channel(auto_prefetch.Model):
     """Represents a Twitch channel.
 
     Attributes:
@@ -240,7 +246,7 @@ class Channel(models.Model):
         }
     """
 
-    id = models.PositiveBigIntegerField(primary_key=True)
+    id = models.TextField(primary_key=True)
     display_name = models.TextField(null=True, blank=True)
     name = models.TextField(null=True, blank=True)
     typename = models.TextField(null=True, blank=True)
@@ -252,7 +258,7 @@ class Channel(models.Model):
         return f"https://www.twitch.tv/{self.name}"
 
 
-class Allow(models.Model):
+class Allow(auto_prefetch.Model):
     """List of channels that you can watch to earn rewards.
 
     Attributes:
@@ -283,7 +289,7 @@ class Allow(models.Model):
         return f"{self.channels.count()} channels"
 
 
-class Owner(models.Model):
+class Owner(auto_prefetch.Model):
     """Represents the owner of the reward campaign.
 
     Attributes:
@@ -294,14 +300,14 @@ class Owner(models.Model):
 
     JSON example:
         "game": {
-            "id": "491487",
+            "id": "491487", # Can also be a string like 'c57a089c-088f-4402-b02d-c13281b3397e'
             "slug": "dead-by-daylight",
             "displayName": "Dead by Daylight",
             "__typename": "Game"
         },"
     """
 
-    id = models.PositiveBigIntegerField(primary_key=True)
+    id = models.TextField(primary_key=True)
     slug = models.TextField(null=True, blank=True)
     display_name = models.TextField(null=True, blank=True)
     typename = models.TextField(null=True, blank=True)
@@ -313,7 +319,7 @@ class Owner(models.Model):
         return f"https://www.twitch.tv/{self.slug}"
 
 
-class Benefit(models.Model):
+class Benefit(auto_prefetch.Model):
     """Represents a benefit that you can earn.
 
     Attributes:
@@ -351,19 +357,19 @@ class Benefit(models.Model):
 
     id = models.TextField(primary_key=True)
     created_at = models.DateTimeField(null=True)
-    entitlement_limit = models.PositiveBigIntegerField(null=True)
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="benefits", null=True)
+    entitlement_limit = models.TextField(null=True)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="benefits", null=True)
     image_asset_url = models.URLField(null=True, blank=True)
     is_ios_available = models.BooleanField(null=True)
     name = models.TextField(null=True, blank=True)
-    owner_organization = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="benefits", null=True)
+    owner_organization = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="benefits", null=True)
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name or "Unknown"
 
 
-class BenefitEdge(models.Model):
+class BenefitEdge(auto_prefetch.Model):
     """Represents a benefit edge.
 
     Attributes:
@@ -400,8 +406,8 @@ class BenefitEdge(models.Model):
         ],
     """
 
-    benefit = models.ForeignKey(Benefit, on_delete=models.CASCADE, related_name="benefit_edges", null=True)
-    entitlement_limit = models.PositiveBigIntegerField(null=True)
+    benefit = auto_prefetch.ForeignKey(Benefit, on_delete=models.CASCADE, related_name="benefit_edges", null=True)
+    entitlement_limit = models.TextField(null=True)
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -409,7 +415,7 @@ class BenefitEdge(models.Model):
         return f"{benefit_name} - {self.entitlement_limit}"
 
 
-class TimeBasedDrop(models.Model):
+class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop.
 
     Attributes:
@@ -459,19 +465,24 @@ class TimeBasedDrop(models.Model):
 
     id = models.TextField(primary_key=True)
     created_at = models.DateTimeField(null=True)
-    entitlement_limit = models.PositiveBigIntegerField(null=True)
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="time_based_drops", null=True)
+    entitlement_limit = models.TextField(null=True)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="time_based_drops", null=True)
     image_asset_url = models.URLField(null=True, blank=True)
     is_ios_available = models.BooleanField(null=True)
     name = models.TextField(null=True, blank=True)
-    owner_organization = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="time_based_drops", null=True)
+    owner_organization = auto_prefetch.ForeignKey(
+        Owner,
+        on_delete=models.CASCADE,
+        related_name="time_based_drops",
+        null=True,
+    )
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name or "Unknown"
 
 
-class DropCampaign(models.Model):
+class DropCampaign(auto_prefetch.Model):
     """Represents a drop campaign.
 
     Attributes:
@@ -492,16 +503,16 @@ class DropCampaign(models.Model):
     """
 
     id = models.TextField(primary_key=True)
-    allow = models.ForeignKey(Allow, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    allow = auto_prefetch.ForeignKey(Allow, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     account_link_url = models.URLField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     details_url = models.URLField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True)
     # event_based_drops =  ????
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     image_url = models.URLField(null=True, blank=True)
     name = models.TextField(null=True, blank=True)
-    owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    owner = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     starts_at = models.DateTimeField(null=True)
     status = models.TextField(null=True, blank=True)
     time_based_drops = models.ManyToManyField(TimeBasedDrop, related_name="drop_campaigns")
