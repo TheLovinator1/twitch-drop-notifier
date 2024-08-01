@@ -11,7 +11,20 @@ from platformdirs import user_data_dir
 from playwright.async_api import Playwright, async_playwright
 from playwright.async_api._generated import Response
 
-from twitch_app.models import Game, Image, Reward, RewardCampaign, UnlockRequirements
+from twitch_app.models import (
+    Allow,
+    Benefit,
+    BenefitEdge,
+    Channel,
+    DropCampaign,
+    Game,
+    Image,
+    Owner,
+    Reward,
+    RewardCampaign,
+    TimeBasedDrop,
+    UnlockRequirements,
+)
 
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
@@ -33,92 +46,428 @@ if not data_dir:
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-async def add_reward_campaign(json_data: dict) -> None:
-    """Add data from JSON to the database."""
-    for campaign_data in json_data["data"]["rewardCampaignsAvailableToUser"]:
-        # Add or get Game
-        game_data = campaign_data["game"]
-        if game_data:
-            game, _ = await sync_to_async(Game.objects.get_or_create)(
-                id=game_data["id"],
-                slug=game_data["slug"],
-                defaults={
-                    "display_name": game_data["displayName"],
-                    "typename": game_data["__typename"],
-                },
-            )
-        else:
-            logger.warning("%s is not for a game?", campaign_data["name"])
-            game = None
+async def add_or_get_game(json_data: dict, name: str) -> tuple[Game | None, bool]:
+    """Add or get Game from JSON data.
 
-        # Add or get Image
-        image_data = campaign_data["image"]
-        image, _ = await sync_to_async(Image.objects.get_or_create)(
-            image1_x_url=image_data["image1xURL"],
-            defaults={"typename": image_data["__typename"]},
+    Args:
+        json_data (dict): JSON data to add to the database.
+        name (str): Name of the drop campaign.
+
+    Returns:
+        tuple[Game | None, bool]: Game instance and whether it was created.
+    """
+    if not json_data:
+        logger.warning("%s is not for a game?", name)
+        return None, False
+
+    game, created = await Game.objects.aupdate_or_create(
+        id=json_data["id"],
+        defaults={
+            "slug": json_data.get("slug"),
+            "display_name": json_data.get("displayName"),
+            "typename": json_data.get("__typename"),
+        },
+    )
+
+    return game, created
+
+
+async def add_or_get_owner(json_data: dict, name: str) -> tuple[Owner | None, bool]:
+    """Add or get Owner from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+        name (str): Name of the drop campaign.
+
+    Returns:
+        Owner: Owner instance.
+    """
+    if not json_data:
+        logger.warning("Owner data is missing for %s", name)
+        return None, False
+
+    owner, created = await Owner.objects.aupdate_or_create(
+        id=json_data["id"],
+        defaults={
+            "display_name": json_data.get("name"),
+            "typename": json_data.get("__typename"),
+        },
+    )
+
+    return owner, created
+
+
+async def add_or_get_allow(json_data: dict, name: str) -> tuple[Allow | None, bool]:
+    """Add or get Allow from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+        name (str): Name of the drop campaign.
+
+    Returns:
+        Allow: Allow instance.
+    """
+    if not json_data:
+        logger.warning("Allow data is missing for %s", name)
+        return None, False
+
+    allow, created = await Allow.objects.aupdate_or_create(
+        is_enabled=json_data.get("isEnabled"),
+        typename=json_data.get("__typename"),
+    )
+
+    return allow, created
+
+
+async def add_or_get_time_based_drops(
+    time_based_drops_data: list[dict] | None,
+    owner: Owner | None,
+    game: Game | None,
+) -> list[TimeBasedDrop]:
+    """Handle TimeBasedDrops from JSON data.
+
+    Args:
+        time_based_drops_data (list[dict]): Time based drops data from JSON.
+        owner (Owner): Owner instance.
+        game (Game): Game instance.
+
+    Returns:
+        list[TimeBasedDrop]: TimeBasedDrop instances.
+    """
+    time_based_drops: list[TimeBasedDrop] = []
+
+    if not time_based_drops_data:
+        logger.warning("No time based drops found")
+        return []
+
+    for time_based_drop_data in time_based_drops_data:
+        time_based_drop, _ = await TimeBasedDrop.objects.aupdate_or_create(
+            id=time_based_drop_data["id"],
+            defaults={
+                "created_at": time_based_drop_data.get("createdAt"),
+                "entitlement_limit": time_based_drop_data.get("entitlementLimit"),
+                "image_asset_url": time_based_drop_data.get("imageAssetURL"),
+                "is_ios_available": time_based_drop_data.get("isIosAvailable"),
+                "name": time_based_drop_data.get("name"),
+                "owner_organization": owner,
+                "game": game,
+                "typename": time_based_drop_data.get("__typename"),
+            },
         )
 
-        # Create Reward instances
-        rewards = []
-        for reward_data in campaign_data["rewards"]:
-            banner_image_data = reward_data["bannerImage"]
+        benefit_edges_data: list[dict] = time_based_drop_data.get("benefitEdges", [])
+        for benefit_edge_data in benefit_edges_data:
+            benefit_data: dict = benefit_edge_data.get("benefit", {})
+            benefit, _ = await Benefit.objects.aupdate_or_create(
+                id=benefit_data["id"],
+                defaults={
+                    "created_at": benefit_data.get("createdAt"),
+                    "entitlement_limit": benefit_data.get("entitlementLimit"),
+                    "image_asset_url": benefit_data.get("imageAssetURL"),
+                    "is_ios_available": benefit_data.get("isIosAvailable"),
+                    "name": benefit_data.get("name"),
+                    "owner_organization": owner,
+                    "game": game,
+                    "typename": benefit_data.get("__typename"),
+                },
+            )
+
+            await BenefitEdge.objects.aupdate_or_create(
+                benefit=benefit,
+                defaults={
+                    "entitlement_limit": benefit_edge_data.get("entitlementLimit"),
+                    "typename": benefit_edge_data.get("__typename"),
+                },
+            )
+
+        time_based_drops.append(time_based_drop)
+
+    return time_based_drops
+
+
+async def add_or_get_drop_campaign(
+    drop_campaign_data: dict,
+    game: Game | None,
+    owner: Owner | None,
+) -> tuple[DropCampaign | None, bool]:
+    """Handle DropCampaign from JSON data.
+
+    Args:
+        drop_campaign_data (dict): Drop campaign data from JSON.
+        game (Game): Game instance.
+        owner (Owner): Owner instance.
+
+    Returns:
+        tuple[DropCampaign, bool]: DropCampaign instance and whether it was created.
+    """
+    if not drop_campaign_data:
+        logger.warning("No drop campaign data found")
+        return None, False
+
+    drop_campaign, _ = await DropCampaign.objects.aupdate_or_create(
+        id=drop_campaign_data["id"],
+        defaults={
+            # "allow": allow, # We add this later
+            "account_link_url": drop_campaign_data.get("accountLinkURL"),
+            "description": drop_campaign_data.get("description"),
+            "details_url": drop_campaign_data.get("detailsURL"),
+            "ends_at": drop_campaign_data.get("endAt"),
+            # event_based_drops =  ???? # TODO(TheLovinator): Find out what this is  # noqa: TD003
+            "game": game,
+            "image_url": drop_campaign_data.get("imageURL"),
+            "name": drop_campaign_data.get("name"),
+            "owner": owner,
+            "starts_at": drop_campaign_data.get("startAt"),
+            "status": drop_campaign_data.get("status"),
+            # "time_based_drops": time_based_drops, # We add this later
+            "typename": drop_campaign_data.get("__typename"),
+        },
+    )
+
+    return drop_campaign, True
+
+
+async def add_or_get_channel(json_data: dict) -> tuple[Channel | None, bool]:
+    """Add or get Channel from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+
+    Returns:
+        tuple[Channel | None, bool]: Channel instance and whether it was created.
+    """
+    if not json_data:
+        logger.warning("Channel data is missing")
+        return None, False
+
+    channel, created = await Channel.objects.aupdate_or_create(
+        id=json_data["id"],
+        defaults={
+            "display_name": json_data.get("displayName"),
+            "name": json_data.get("name"),
+            "typename": json_data.get("__typename"),
+        },
+    )
+
+    return channel, created
+
+
+async def add_drop_campaign(json_data: dict) -> None:
+    """Add data from JSON to the database."""
+    # Get the data from the JSON
+    user_data: dict = json_data.get("data", {}).get("user", {})
+    drop_campaign_data: dict = user_data.get("dropCampaign", {})
+
+    # Add or get Game
+    game_data: dict = drop_campaign_data.get("game", {})
+    game, _ = await add_or_get_game(json_data=game_data, name=drop_campaign_data.get("name", "Unknown Drop Campaign"))
+
+    # Add or get Owner
+    owner_data: dict = drop_campaign_data.get("owner", {})
+    owner, _ = await add_or_get_owner(
+        json_data=owner_data,
+        name=drop_campaign_data.get("name", "Unknown Drop Campaign"),
+    )
+
+    # Add or get Allow
+    allow_data: dict = drop_campaign_data.get("allow", {})
+    allow, _ = await add_or_get_allow(
+        json_data=allow_data,
+        name=drop_campaign_data.get("name", "Unknown Drop Campaign"),
+    )
+
+    # Add channels to Allow
+    if allow:
+        channel_data: list[dict] = allow_data.get("channels", [])
+        for json_channel in channel_data:
+            channel, _ = await add_or_get_channel(json_channel)
+            if channel:
+                await allow.channels.aadd(channel)
+
+    # Add or get TimeBasedDrops
+    time_based_drops_data = drop_campaign_data.get("timeBasedDrops", [])
+    time_based_drops: list[TimeBasedDrop] = await add_or_get_time_based_drops(time_based_drops_data, owner, game)
+
+    # Add or get DropCampaign
+    drop_campaign, _ = await add_or_get_drop_campaign(
+        drop_campaign_data=drop_campaign_data,
+        game=game,
+        owner=owner,
+    )
+    if drop_campaign:
+        drop_campaign.allow = allow
+        await drop_campaign.time_based_drops.aset(time_based_drops)
+        await drop_campaign.asave()
+
+        logger.info("Added Drop Campaign: %s", drop_campaign.name or "Unknown Drop Campaign")
+
+
+async def add_or_get_image(json_data: dict) -> tuple[Image | None, bool]:
+    """Add or get Image from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+
+    Returns:
+        tuple[Image | None, bool]: Image instance and whether it was created.
+    """
+    # TODO(TheLovinator): We should download the image and store it locally  # noqa: TD003
+    if not json_data:
+        logger.warning("Image data is missing")
+        return None, False
+
+    if not json_data.get("image1xURL"):
+        logger.warning("Image URL is missing")
+        return None, False
+
+    image, created = await Image.objects.aupdate_or_create(
+        image1_x_url=json_data.get("image1xURL"),
+        defaults={
+            "typename": json_data.get("__typename"),
+        },
+    )
+
+    return image, created
+
+
+async def add_or_get_rewards(json_data: dict) -> list[Reward]:
+    """Add or get Rewards from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+
+    Returns:
+        list[Reward]: Reward instances
+    """
+    rewards: list[Reward] = []
+
+    if not json_data:
+        logger.warning("No rewards found")
+        return []
+
+    if "rewards" not in json_data:
+        logger.warning("No rewards found")
+        return []
+
+    rewards_json: list[dict] = json_data.get("rewards", [])
+    for reward_data in rewards_json:
+        # Add or get bannerImage
+        banner_image_data: dict = reward_data.get("bannerImage", {})
+        if banner_image_data:
             banner_image, _ = await sync_to_async(Image.objects.get_or_create)(
                 image1_x_url=banner_image_data["image1xURL"],
                 defaults={"typename": banner_image_data["__typename"]},
             )
 
-            thumbnail_image_data = reward_data["thumbnailImage"]
+        # Add or get thumbnailImage
+        thumbnail_image_data = reward_data.get("thumbnailImage", {})
+        if thumbnail_image_data:
             thumbnail_image, _ = await sync_to_async(Image.objects.get_or_create)(
                 image1_x_url=thumbnail_image_data["image1xURL"],
                 defaults={"typename": thumbnail_image_data["__typename"]},
             )
 
-            reward, _ = await sync_to_async(Reward.objects.get_or_create)(
-                id=reward_data["id"],
-                name=reward_data["name"],
-                banner_image=banner_image,
-                thumbnail_image=thumbnail_image,
-                earnable_until=datetime.fromisoformat(reward_data["earnableUntil"].replace("Z", "+00:00")),
-                redemption_instructions=reward_data["redemptionInstructions"],
-                redemption_url=reward_data["redemptionURL"],
-                typename=reward_data["__typename"],
-            )
-            rewards.append(reward)
+        # Convert earnableUntil to a datetime object
+        earnable_until: str | None = reward_data.get("earnableUntil")
+        earnable_until_date: datetime | None = None
+        if earnable_until:
+            earnable_until_date = datetime.fromisoformat(earnable_until.replace("Z", "+00:00"))
 
-        # Add or get Unlock Requirements
-        unlock_requirements_data = campaign_data["unlockRequirements"]
-        _, _ = await sync_to_async(UnlockRequirements.objects.get_or_create)(
-            subs_goal=unlock_requirements_data["subsGoal"],
+        reward, _ = await sync_to_async(Reward.objects.get_or_create)(
+            id=reward_data["id"],
             defaults={
-                "minute_watched_goal": unlock_requirements_data["minuteWatchedGoal"],
-                "typename": unlock_requirements_data["__typename"],
+                "name": reward_data.get("name"),
+                "banner_image": banner_image,
+                "thumbnail_image": thumbnail_image,
+                "earnable_until": earnable_until_date,
+                "redemption_instructions": reward_data.get("redemptionInstructions"),
+                "redemption_url": reward_data.get("redemptionURL"),
+                "typename": reward_data.get("__typename"),
             },
         )
+        rewards.append(reward)
+
+    return rewards
+
+
+async def add_or_get_unlock_requirements(json_data: dict) -> tuple[UnlockRequirements | None, bool]:
+    """Add or get UnlockRequirements from JSON data.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+
+    Returns:
+        tuple[UnlockRequirements | None, bool]: UnlockRequirements instance and whether it was created.
+    """
+    if not json_data:
+        logger.warning("Unlock Requirements data is missing")
+        return None, False
+
+    unlock_requirements, created = await UnlockRequirements.objects.aget_or_create(
+        subs_goal=json_data["subsGoal"],
+        defaults={
+            "minute_watched_goal": json_data["minuteWatchedGoal"],
+            "typename": json_data["__typename"],
+        },
+    )
+
+    return unlock_requirements, created
+
+
+async def add_reward_campaign(json_data: dict) -> None:
+    """Add data from JSON to the database.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+
+    Returns:
+        None: No return value.
+    """
+    campaign_data: list[dict] = json_data["data"]["rewardCampaignsAvailableToUser"]
+    for campaign in campaign_data:
+        # Add or get Game
+        game_data: dict = campaign.get("game", {})
+        game, _ = await add_or_get_game(json_data=game_data, name=campaign.get("name", "Unknown Reward Campaign"))
+
+        # Add or get Image
+        image_data: dict = campaign.get("image", {})
+        image, _ = await add_or_get_image(json_data=image_data)
+
+        # Add or get Rewards
+        rewards: list[Reward] = await add_or_get_rewards(campaign)
+
+        # Add or get Unlock Requirements
+        unlock_requirements_data: dict = campaign["unlockRequirements"]
+        unlock_requirements, _ = await add_or_get_unlock_requirements(unlock_requirements_data)
 
         # Create Reward Campaign
-        reward_campaign, _ = await sync_to_async(RewardCampaign.objects.get_or_create)(
-            id=campaign_data["id"],
-            name=campaign_data["name"],
-            brand=campaign_data["brand"],
-            starts_at=datetime.fromisoformat(campaign_data["startsAt"].replace("Z", "+00:00")),
-            ends_at=datetime.fromisoformat(campaign_data["endsAt"].replace("Z", "+00:00")),
-            status=campaign_data["status"],
-            summary=campaign_data["summary"],
-            instructions=campaign_data["instructions"],
-            external_url=campaign_data["externalURL"],
-            reward_value_url_param=campaign_data["rewardValueURLParam"],
-            about_url=campaign_data["aboutURL"],
-            is_sitewide=campaign_data["isSitewide"],
-            game=game,
-            image=image,
-            typename=campaign_data["__typename"],
+        reward_campaign, _ = await RewardCampaign.objects.aget_or_create(
+            id=campaign["id"],
+            defaults={
+                "name": campaign.get("name"),
+                "brand": campaign.get("brand"),
+                "starts_at": campaign.get("startAt"),
+                "ends_at": campaign.get("endAt"),
+                "status": campaign.get("status"),
+                "summary": campaign.get("summary"),
+                "instructions": campaign.get("instructions"),
+                "external_url": campaign.get("externalURL"),
+                "reward_value_url_params": campaign.get("rewardValueURLParams"),
+                "about_url": campaign.get("aboutURL"),
+                "is_sitewide": campaign.get("isSitewide"),
+                "game": game,
+                "unlock_requirements": unlock_requirements,
+                "image": image,
+                # "rewards": rewards, # We add this later
+                "typename": campaign.get("__typename"),
+            },
         )
 
         # Add Rewards to the Campaign
         for reward in rewards:
-            await sync_to_async(reward_campaign.rewards.add)(reward)
+            await reward_campaign.rewards.aadd(reward)
 
-        await sync_to_async(reward_campaign.save)()
+        await reward_campaign.asave()
 
 
 class Command(BaseCommand):

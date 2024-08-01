@@ -2,108 +2,118 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.migrations.operations.base import Operation
 
 
 class Migration(migrations.Migration):
-
-    dependencies = [
-        ('twitch_app', '0002_alter_rewardcampaign_about_url_and_more'),
+    dependencies: list[tuple[str, str]] = [
+        ("twitch_app", "0002_alter_rewardcampaign_about_url_and_more"),
     ]
 
-    operations = [
+    operations: list[Operation] = [
         migrations.AlterField(
-            model_name='game',
-            name='display_name',
+            model_name="game",
+            name="display_name",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='game',
-            name='slug',
+            model_name="game",
+            name="slug",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='game',
-            name='typename',
+            model_name="game",
+            name="typename",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='image',
-            name='image1_x_url',
+            model_name="image",
+            name="image1_x_url",
             field=models.URLField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='image',
-            name='typename',
+            model_name="image",
+            name="typename",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='banner_image',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='banner_rewards', to='twitch_app.image'),
+            model_name="reward",
+            name="banner_image",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="banner_rewards",
+                to="twitch_app.image",
+            ),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='earnable_until',
+            model_name="reward",
+            name="earnable_until",
             field=models.DateTimeField(null=True),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='name',
+            model_name="reward",
+            name="name",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='redemption_instructions',
+            model_name="reward",
+            name="redemption_instructions",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='redemption_url',
+            model_name="reward",
+            name="redemption_url",
             field=models.URLField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='thumbnail_image',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='thumbnail_rewards', to='twitch_app.image'),
+            model_name="reward",
+            name="thumbnail_image",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="thumbnail_rewards",
+                to="twitch_app.image",
+            ),
         ),
         migrations.AlterField(
-            model_name='reward',
-            name='typename',
+            model_name="reward",
+            name="typename",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='rewardcampaign',
-            name='ends_at',
+            model_name="rewardcampaign",
+            name="ends_at",
             field=models.DateTimeField(null=True),
         ),
         migrations.AlterField(
-            model_name='rewardcampaign',
-            name='is_sitewide',
+            model_name="rewardcampaign",
+            name="is_sitewide",
             field=models.BooleanField(null=True),
         ),
         migrations.AlterField(
-            model_name='rewardcampaign',
-            name='rewards',
-            field=models.ManyToManyField(related_name='reward_campaigns', to='twitch_app.reward'),
+            model_name="rewardcampaign",
+            name="rewards",
+            field=models.ManyToManyField(related_name="reward_campaigns", to="twitch_app.reward"),
         ),
         migrations.AlterField(
-            model_name='rewardcampaign',
-            name='starts_at',
+            model_name="rewardcampaign",
+            name="starts_at",
             field=models.DateTimeField(null=True),
         ),
         migrations.AlterField(
-            model_name='unlockrequirements',
-            name='minute_watched_goal',
+            model_name="unlockrequirements",
+            name="minute_watched_goal",
             field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='unlockrequirements',
-            name='subs_goal',
+            model_name="unlockrequirements",
+            name="subs_goal",
             field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='unlockrequirements',
-            name='typename',
+            model_name="unlockrequirements",
+            name="typename",
             field=models.TextField(blank=True, null=True),
         ),
     ]

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import hishel
 from django.conf import settings
-from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
 from django.views.generic import ListView
 
@@ -15,6 +14,7 @@ from twitch_app.models import Game, RewardCampaign
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from django.db.models.manager import BaseManager
     from django.http import HttpRequest, HttpResponse
     from httpx import Response
 

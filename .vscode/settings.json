@@ -3,6 +3,8 @@
     "allauth",
     "appendonly",
     "asgiref",
+    "Behaviour",
+    "cacd",
     "forloop",
     "logdir",
     "memlock",
@@ -12,6 +14,7 @@
     "requirepass",
     "sitewide",
     "socialaccount",
+    "Stresss",
     "ttvdrops",
     "ulimits",
     "xdefiant"
