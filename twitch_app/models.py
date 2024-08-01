@@ -504,7 +504,7 @@ class DropCampaign(models.Model):
     owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     starts_at = models.DateTimeField(null=True)
     status = models.TextField(null=True, blank=True)
-    time_based_drops = models.ManyToManyField(TimeBasedDrop, related_name="drop_campaigns", null=True)
+    time_based_drops = models.ManyToManyField(TimeBasedDrop, related_name="drop_campaigns")
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
