@@ -28,6 +28,7 @@ from twitch_app.models import (
 
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
+import json
 
 # Where to store the Chrome profile
 data_dir = Path(
@@ -66,6 +67,7 @@ async def add_or_get_game(json_data: dict, name: str) -> tuple[Game | None, bool
             "slug": json_data.get("slug"),
             "display_name": json_data.get("displayName"),
             "typename": json_data.get("__typename"),
+            "box_art_url": json_data.get("boxArtURL"),  # Only for RewardCampaigns
         },
     )
 
@@ -203,6 +205,9 @@ async def add_or_get_drop_campaign(
     if not drop_campaign_data:
         logger.warning("No drop campaign data found")
         return None, False
+
+    if drop_campaign_data.get("__typename") != "Game":
+        logger.error("__typename is not 'Game' for %s", drop_campaign_data.get("name", "Unknown Drop Campaign"))
 
     drop_campaign, _ = await DropCampaign.objects.aupdate_or_create(
         id=drop_campaign_data["id"],
@@ -546,16 +551,35 @@ class Command(BaseCommand):
                 continue
 
             if "rewardCampaignsAvailableToUser" in campaign["data"]:
+                # Save to folder named "reward_campaigns"
+                dir_name: Path = Path("reward_campaigns")
+                dir_name.mkdir(parents=True, exist_ok=True)
+                with open(file=Path(dir_name / f"reward_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
+                    json.dump(campaign, f, indent=4)
+
                 await add_reward_campaign(campaign)
 
             if "dropCampaign" in campaign.get("data", {}).get("user", {}):
                 if not campaign["data"]["user"]["dropCampaign"]:
                     logger.warning("No drop campaign found")
                     continue
+
+                # Save to folder named "drop_campaign"
+                dir_name: Path = Path("drop_campaign")
+                dir_name.mkdir(parents=True, exist_ok=True)
+                with open(file=Path(dir_name / f"drop_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
+                    json.dump(campaign, f, indent=4)
+
                 await add_drop_campaign(campaign)
 
             if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
                 for drop_campaign in campaign["data"]["user"]["dropCampaigns"]:
+                    # Save to folder named "drop_campaigns"
+                    dir_name: Path = Path("drop_campaigns")
+                    dir_name.mkdir(parents=True, exist_ok=True)
+                    with open(file=Path(dir_name / f"drop_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
+                        json.dump(drop_campaign, f, indent=4)
+
                     await add_drop_campaign(drop_campaign)
 
         return json_data

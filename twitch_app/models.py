@@ -1,3 +1,5 @@
+import typing
+
 import auto_prefetch
 from django.db import models
 
@@ -25,6 +27,7 @@ class Game(auto_prefetch.Model):
     id = models.AutoField(primary_key=True)
     slug = models.TextField(null=True, blank=True)
     display_name = models.TextField(null=True, blank=True)
+    box_art_url = models.URLField(null=True, blank=True)
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -502,6 +505,11 @@ class DropCampaign(auto_prefetch.Model):
         typename (str): The type name of the object, typically "DropCampaign".
     """
 
+    STATUS_CHOICES: typing.ClassVar[list[tuple[str, str]]] = [
+        ("ACTIVE", "Active"),
+        ("EXPIRED", "Expired"),
+    ]
+
     id = models.TextField(primary_key=True)
     allow = auto_prefetch.ForeignKey(Allow, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     account_link_url = models.URLField(null=True, blank=True)
@@ -514,9 +522,68 @@ class DropCampaign(auto_prefetch.Model):
     name = models.TextField(null=True, blank=True)
     owner = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
     starts_at = models.DateTimeField(null=True)
-    status = models.TextField(null=True, blank=True)
+    status = models.TextField(choices=STATUS_CHOICES, null=True, blank=True)
     time_based_drops = models.ManyToManyField(TimeBasedDrop, related_name="drop_campaigns")
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name or "Unknown"
+
+
+class FrontEndChannel(auto_prefetch.Model):
+    """This is the channel we will see on the front end."""
+
+    name = models.TextField(null=True, blank=True)
+    twitch_url = models.URLField(null=True, blank=True)
+    live = models.BooleanField(default=False)
+
+
+class FrontEndOrg(auto_prefetch.Model):
+    """Drops are group by organization -> by game -> by drop campaign."""
+
+    id = models.TextField(primary_key=True)
+    name = models.TextField(null=True, blank=True)
+    url = models.TextField(null=True, blank=True)
+
+
+class FrontEndGame(auto_prefetch.Model):
+    """This is the game we will see on the front end."""
+
+    twitch_id = models.TextField(primary_key=True)
+    game_url = models.URLField(null=True, blank=True)
+    display_name = models.TextField(null=True, blank=True)
+
+    org = models.ForeignKey(FrontEndOrg, on_delete=models.CASCADE, related_name="games", null=True)
+
+    def __str__(self) -> str:
+        return self.display_name or "Unknown"
+
+
+class FrontEndDropCampaign(auto_prefetch.Model):
+    """This is the drop campaign we will see on the front end."""
+
+    account_link_url = models.URLField(null=True, blank=True)
+    about_url = models.URLField(null=True, blank=True)
+
+    ends_at = models.DateTimeField(null=True)
+    starts_at = models.DateTimeField(null=True)
+
+    game = models.ForeignKey(FrontEndGame, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+
+    channels = models.ManyToManyField(FrontEndChannel, related_name="drop_campaigns")
+
+
+class FrontEndDrop(auto_prefetch.Model):
+    """This is the drop we will see on the front end."""
+
+    id = models.TextField(primary_key=True)
+    created_at = models.DateTimeField(null=True)
+
+    name = models.TextField(null=True, blank=True)
+    image_url = models.URLField(null=True, blank=True)
+
+    drop_campaign = models.ForeignKey(FrontEndDropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
+
+    limit = models.PositiveBigIntegerField(null=True)
+    is_ios_available = models.BooleanField(null=True)
+    minutes_watched = models.PositiveBigIntegerField(null=True)
