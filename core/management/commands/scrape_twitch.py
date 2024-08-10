@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import typing
 from datetime import datetime
@@ -11,7 +12,7 @@ from platformdirs import user_data_dir
 from playwright.async_api import Playwright, async_playwright
 from playwright.async_api._generated import Response
 
-from twitch_app.models import (
+from core.models import (
     Allow,
     Benefit,
     BenefitEdge,
@@ -28,37 +29,38 @@ from twitch_app.models import (
 
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
-import json
 
-# Where to store the Chrome profile
-data_dir = Path(
-    user_data_dir(
-        appname="TTVDrops",
-        appauthor="TheLovinator",
-        roaming=True,
-        ensure_exists=True,
-    ),
-)
-
-if not data_dir:
-    msg = "DATA_DIR is not set in settings.py"
-    raise ValueError(msg)
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-async def add_or_get_game(json_data: dict, name: str) -> tuple[Game | None, bool]:
+def get_data_dir() -> Path:
+    """Get the data directory.
+
+    Returns:
+        Path: The data directory.
+    """
+    return Path(
+        user_data_dir(
+            appname="TTVDrops",
+            appauthor="TheLovinator",
+            roaming=True,
+            ensure_exists=True,
+        ),
+    )
+
+
+async def add_or_get_game(json_data: dict | None) -> tuple[Game | None, bool]:
     """Add or get Game from JSON data.
 
     Args:
         json_data (dict): JSON data to add to the database.
-        name (str): Name of the drop campaign.
 
     Returns:
         tuple[Game | None, bool]: Game instance and whether it was created.
     """
     if not json_data:
-        logger.warning("%s is not for a game?", name)
+        logger.warning("Couldn't find game data, probably a reward campaign?")
         return None, False
 
     game, created = await Game.objects.aupdate_or_create(
@@ -71,21 +73,23 @@ async def add_or_get_game(json_data: dict, name: str) -> tuple[Game | None, bool
         },
     )
 
+    if created:
+        logger.info("Found new game: %s", game.display_name or "Unknown Game")
+
     return game, created
 
 
-async def add_or_get_owner(json_data: dict, name: str) -> tuple[Owner | None, bool]:
+async def add_or_get_owner(json_data: dict | None) -> tuple[Owner | None, bool]:
     """Add or get Owner from JSON data.
 
     Args:
         json_data (dict): JSON data to add to the database.
-        name (str): Name of the drop campaign.
 
     Returns:
         Owner: Owner instance.
     """
     if not json_data:
-        logger.warning("Owner data is missing for %s", name)
+        logger.warning("No owner data provided")
         return None, False
 
     owner, created = await Owner.objects.aupdate_or_create(
@@ -99,18 +103,17 @@ async def add_or_get_owner(json_data: dict, name: str) -> tuple[Owner | None, bo
     return owner, created
 
 
-async def add_or_get_allow(json_data: dict, name: str) -> tuple[Allow | None, bool]:
+async def add_or_get_allow(json_data: dict | None) -> tuple[Allow | None, bool]:
     """Add or get Allow from JSON data.
 
     Args:
         json_data (dict): JSON data to add to the database.
-        name (str): Name of the drop campaign.
 
     Returns:
         Allow: Allow instance.
     """
     if not json_data:
-        logger.warning("Allow data is missing for %s", name)
+        logger.warning("No allow data provided")
         return None, False
 
     allow, created = await Allow.objects.aupdate_or_create(
@@ -133,14 +136,15 @@ async def add_or_get_time_based_drops(
         owner (Owner): Owner instance.
         game (Game): Game instance.
 
+
     Returns:
         list[TimeBasedDrop]: TimeBasedDrop instances.
     """
     time_based_drops: list[TimeBasedDrop] = []
 
     if not time_based_drops_data:
-        logger.warning("No time based drops found")
-        return []
+        logger.warning("No time based drops data provided")
+        return time_based_drops
 
     for time_based_drop_data in time_based_drops_data:
         time_based_drop, _ = await TimeBasedDrop.objects.aupdate_or_create(
@@ -188,7 +192,7 @@ async def add_or_get_time_based_drops(
 
 
 async def add_or_get_drop_campaign(
-    drop_campaign_data: dict,
+    drop_campaign_data: dict | None,
     game: Game | None,
     owner: Owner | None,
 ) -> tuple[DropCampaign | None, bool]:
@@ -199,11 +203,12 @@ async def add_or_get_drop_campaign(
         game (Game): Game instance.
         owner (Owner): Owner instance.
 
+
     Returns:
         tuple[DropCampaign, bool]: DropCampaign instance and whether it was created.
     """
     if not drop_campaign_data:
-        logger.warning("No drop campaign data found")
+        logger.warning("No drop campaign data provided")
         return None, False
 
     if drop_campaign_data.get("__typename") != "Game":
@@ -232,17 +237,18 @@ async def add_or_get_drop_campaign(
     return drop_campaign, True
 
 
-async def add_or_get_channel(json_data: dict) -> tuple[Channel | None, bool]:
+async def add_or_get_channel(json_data: dict | None) -> tuple[Channel | None, bool]:
     """Add or get Channel from JSON data.
 
     Args:
         json_data (dict): JSON data to add to the database.
 
+
     Returns:
         tuple[Channel | None, bool]: Channel instance and whether it was created.
     """
     if not json_data:
-        logger.warning("Channel data is missing")
+        logger.warning("No channel data provided")
         return None, False
 
     channel, created = await Channel.objects.aupdate_or_create(
@@ -257,29 +263,31 @@ async def add_or_get_channel(json_data: dict) -> tuple[Channel | None, bool]:
     return channel, created
 
 
-async def add_drop_campaign(json_data: dict) -> None:
-    """Add data from JSON to the database."""
+async def add_drop_campaign(json_data: dict | None) -> None:
+    """Add data from JSON to the database.
+
+    Args:
+        json_data (dict): JSON data to add to the database.
+    """
+    if not json_data:
+        logger.warning("No JSON data provided")
+        return
+
     # Get the data from the JSON
     user_data: dict = json_data.get("data", {}).get("user", {})
     drop_campaign_data: dict = user_data.get("dropCampaign", {})
 
     # Add or get Game
     game_data: dict = drop_campaign_data.get("game", {})
-    game, _ = await add_or_get_game(json_data=game_data, name=drop_campaign_data.get("name", "Unknown Drop Campaign"))
+    game, _ = await add_or_get_game(json_data=game_data)
 
     # Add or get Owner
     owner_data: dict = drop_campaign_data.get("owner", {})
-    owner, _ = await add_or_get_owner(
-        json_data=owner_data,
-        name=drop_campaign_data.get("name", "Unknown Drop Campaign"),
-    )
+    owner, _ = await add_or_get_owner(json_data=owner_data)
 
     # Add or get Allow
     allow_data: dict = drop_campaign_data.get("allow", {})
-    allow, _ = await add_or_get_allow(
-        json_data=allow_data,
-        name=drop_campaign_data.get("name", "Unknown Drop Campaign"),
-    )
+    allow, _ = await add_or_get_allow(json_data=allow_data)
 
     # Add channels to Allow
     if allow:
@@ -309,7 +317,7 @@ async def add_drop_campaign(json_data: dict) -> None:
         logger.info("Added Drop Campaign: %s", drop_campaign.name or "Unknown Drop Campaign")
 
 
-async def add_or_get_image(json_data: dict) -> tuple[Image | None, bool]:
+async def add_or_get_image(json_data: dict | None) -> tuple[Image | None, bool]:
     """Add or get Image from JSON data.
 
     Args:
@@ -337,7 +345,7 @@ async def add_or_get_image(json_data: dict) -> tuple[Image | None, bool]:
     return image, created
 
 
-async def add_or_get_rewards(json_data: dict) -> list[Reward]:
+async def add_or_get_rewards(json_data: dict | None) -> list[Reward]:
     """Add or get Rewards from JSON data.
 
     Args:
@@ -397,17 +405,19 @@ async def add_or_get_rewards(json_data: dict) -> list[Reward]:
     return rewards
 
 
-async def add_or_get_unlock_requirements(json_data: dict) -> tuple[UnlockRequirements | None, bool]:
+async def add_or_get_unlock_requirements(json_data: dict | None) -> tuple[UnlockRequirements | None, bool]:
     """Add or get UnlockRequirements from JSON data.
 
     Args:
         json_data (dict): JSON data to add to the database.
 
+
+
     Returns:
         tuple[UnlockRequirements | None, bool]: UnlockRequirements instance and whether it was created.
     """
     if not json_data:
-        logger.warning("Unlock Requirements data is missing")
+        logger.warning("No unlock requirements data provided")
         return None, False
 
     unlock_requirements, created = await UnlockRequirements.objects.aget_or_create(
@@ -421,20 +431,21 @@ async def add_or_get_unlock_requirements(json_data: dict) -> tuple[UnlockRequire
     return unlock_requirements, created
 
 
-async def add_reward_campaign(json_data: dict) -> None:
+async def add_reward_campaign(json_data: dict | None) -> None:
     """Add data from JSON to the database.
 
     Args:
         json_data (dict): JSON data to add to the database.
-
-    Returns:
-        None: No return value.
     """
+    if not json_data:
+        logger.warning("No JSON data provided")
+        return
+
     campaign_data: list[dict] = json_data["data"]["rewardCampaignsAvailableToUser"]
     for campaign in campaign_data:
         # Add or get Game
         game_data: dict = campaign.get("game", {})
-        game, _ = await add_or_get_game(json_data=game_data, name=campaign.get("name", "Unknown Reward Campaign"))
+        game, _ = await add_or_get_game(json_data=game_data)
 
         # Add or get Image
         image_data: dict = campaign.get("image", {})
@@ -477,30 +488,81 @@ async def add_reward_campaign(json_data: dict) -> None:
         await reward_campaign.asave()
 
 
+def get_profile_dir() -> Path:
+    """Get the profile directory for the browser.
+
+    Returns:
+        Path: The profile directory.
+    """
+    profile_dir: Path = Path(get_data_dir() / "chrome-profile")
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug("Launching Chrome browser with user data directory: %s", profile_dir)
+    return profile_dir
+
+
+def save_json(campaign: dict, dir_name: str) -> None:
+    """Save JSON data to a file.
+
+    Args:
+        campaign (dict): The JSON data to save.
+        dir_name (Path): The directory to save the JSON data to.
+    """
+    save_dir: Path = Path(dir_name)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # File name is the hash of the JSON data
+    file_name: str = f"{hash(json.dumps(campaign))}.json"
+
+    with Path(save_dir / file_name).open(mode="w", encoding="utf-8") as f:
+        json.dump(campaign, f, indent=4)
+
+
+async def process_json_data(num: int, campaign: dict | None, json_data: list[dict] | None) -> None:
+    """Process JSON data.
+
+    Args:
+        num (int): The number of the JSON data.
+        campaign (dict): The JSON data to process.
+        json_data (list[dict]): The list of JSON
+    """
+    if not json_data:
+        logger.warning("No JSON data provided")
+        return
+
+    logger.info("Processing JSON %d of %d", num, len(json_data))
+    if not isinstance(campaign, dict):
+        logger.warning("Campaign is not a dictionary")
+        return
+
+    if "rewardCampaignsAvailableToUser" in campaign["data"]:
+        save_json(campaign, "reward_campaigns")
+        await add_reward_campaign(campaign)
+
+    if "dropCampaign" in campaign.get("data", {}).get("user", {}):
+        if not campaign["data"]["user"]["dropCampaign"]:
+            logger.warning("No drop campaign found")
+            return
+
+        save_json(campaign, "drop_campaign")
+        await add_drop_campaign(campaign)
+
+    if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
+        for drop_campaign in campaign["data"]["user"]["dropCampaigns"]:
+            save_json(campaign, "drop_campaigns")
+            await add_drop_campaign(drop_campaign)
+
+
 class Command(BaseCommand):
     help = "Scrape Twitch Drops Campaigns with login using Firefox"
 
-    async def run(  # noqa: PLR6301, C901
-        self,
-        playwright: Playwright,
-    ) -> list[dict[str, typing.Any]]:
-        args: list[str] = []
-
-        # disable navigator.webdriver:true flag
-        args.append("--disable-blink-features=AutomationControlled")
-
-        profile_dir: Path = Path(data_dir / "chrome-profile")
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        logger.debug(
-            "Launching Chrome browser with user data directory: %s",
-            profile_dir,
-        )
-
+    @staticmethod
+    async def run(playwright: Playwright) -> list[dict[str, typing.Any]]:
+        profile_dir: Path = get_profile_dir()
         browser: BrowserContext = await playwright.chromium.launch_persistent_context(
             channel="chrome",
             user_data_dir=profile_dir,
             headless=False,
-            args=args,
+            args=["--disable-blink-features=AutomationControlled"],
         )
         logger.debug("Launched Chrome browser")
 
@@ -540,47 +602,10 @@ class Command(BaseCommand):
         await page.wait_for_load_state("networkidle")
         logger.debug("Page loaded. Scraping data...")
 
-        # Wait 5 seconds for the page to load
-        # await asyncio.sleep(5)
-
         await browser.close()
 
         for num, campaign in enumerate(json_data, start=1):
-            logger.info("Processing JSON %d of %d", num, len(json_data))
-            if not isinstance(campaign, dict):
-                continue
-
-            if "rewardCampaignsAvailableToUser" in campaign["data"]:
-                # Save to folder named "reward_campaigns"
-                dir_name: Path = Path("reward_campaigns")
-                dir_name.mkdir(parents=True, exist_ok=True)
-                with open(file=Path(dir_name / f"reward_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
-                    json.dump(campaign, f, indent=4)
-
-                await add_reward_campaign(campaign)
-
-            if "dropCampaign" in campaign.get("data", {}).get("user", {}):
-                if not campaign["data"]["user"]["dropCampaign"]:
-                    logger.warning("No drop campaign found")
-                    continue
-
-                # Save to folder named "drop_campaign"
-                dir_name: Path = Path("drop_campaign")
-                dir_name.mkdir(parents=True, exist_ok=True)
-                with open(file=Path(dir_name / f"drop_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
-                    json.dump(campaign, f, indent=4)
-
-                await add_drop_campaign(campaign)
-
-            if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
-                for drop_campaign in campaign["data"]["user"]["dropCampaigns"]:
-                    # Save to folder named "drop_campaigns"
-                    dir_name: Path = Path("drop_campaigns")
-                    dir_name.mkdir(parents=True, exist_ok=True)
-                    with open(file=Path(dir_name / f"drop_campaign_{num}.json"), mode="w", encoding="utf-8") as f:
-                        json.dump(drop_campaign, f, indent=4)
-
-                    await add_drop_campaign(drop_campaign)
+            await process_json_data(num, campaign, json_data)
 
         return json_data
 

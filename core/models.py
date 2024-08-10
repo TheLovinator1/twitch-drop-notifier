@@ -1,39 +1,71 @@
+from __future__ import annotations
+
+import logging
 import typing
 
 import auto_prefetch
 from django.db import models
 
+logger: logging.Logger = logging.getLogger(__name__)
+
 
 class Game(auto_prefetch.Model):
     """The game that the reward is for.
 
-    Used for reward campaigns (buy subs) and drop campaigns (watch games).
+    Optional for reward campaigns. Required for drop campaigns.
 
     Attributes:
-        id (int): The primary key of the game.
+        id (str): The primary key of the game.
         slug (str): The slug identifier of the game.
         display_name (str): The display name of the game.
         typename (str): The type name of the object, typically "Game".
 
-    JSON example:
+    Example JSON data:
         {
-            "id": "780302568",
-            "slug": "xdefiant",
-            "displayName": "XDefiant",
-            "__typename": "Game"
+            "data": {
+                "currentUser": {
+                    "dropCampaigns": [
+                        {
+                            "game": {
+                                "id": "263490",
+                                "slug": "rust",
+                                "displayName": "Rust",
+                                "__typename": "Game"
+                            }
+                        }
+                    ]
+                }
+            }
         }
     """
 
-    id = models.AutoField(primary_key=True)
-    slug = models.TextField(null=True, blank=True)
-    display_name = models.TextField(null=True, blank=True)
-    box_art_url = models.URLField(null=True, blank=True)
-    typename = models.TextField(null=True, blank=True)
+    id = models.TextField(primary_key=True, unique=True, help_text="The game ID.", verbose_name="Game ID")
+    slug = models.TextField(null=True, blank=True, help_text="Slug used for building URL where all the streams are.")
+    display_name = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Game name.",
+        default="Unknown Game",
+        verbose_name="Game Name",
+    )
+    typename = models.TextField(null=True, blank=True, help_text="Always 'Game'.", verbose_name="Type Name")
+
+    # Only used for reward campaigns?
+    box_art_url = models.URLField(
+        null=True,
+        blank=True,
+        help_text="URL to the box art of the game.",
+        default="https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg",
+        verbose_name="Box Art URL",
+    )
 
     def __str__(self) -> str:
         return self.display_name or "Unknown"
 
     def get_twitch_url(self) -> str:
+        if not self.slug:
+            logger.error("Game %s has no slug", self.display_name)
+            return "https://www.twitch.tv/"
         return f"https://www.twitch.tv/directory/game/{self.slug}"
 
 
@@ -240,24 +272,38 @@ class Channel(auto_prefetch.Model):
         name (str): The name of the channel.
         typename (str): The type name of the object, typically "Channel".
 
-    JSON example:
+    Example JSON data:
         {
-            "id": "25254906",
-            "displayName": "Stresss",
-            "name": "stresss",
-            "__typename": "Channel"
+            "data": {
+                "user": {
+                    "dropCampaign": {
+                        "allow": {
+                            "channels": [
+                                {
+                                    "id": "464161875",
+                                    "displayName": "Valair",
+                                    "name": "valair",
+                                    "__typename": "Channel"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     """
 
+    # Used in Drop Campaigns
     id = models.TextField(primary_key=True)
     display_name = models.TextField(null=True, blank=True)
     name = models.TextField(null=True, blank=True)
     typename = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return self.display_name or "Unknown"
+        return self.display_name or "Unknown Channel"
 
     def get_twitch_url(self) -> str:
+        # TODO(TheLovinator): Use a field instead  # noqa: TD003
         return f"https://www.twitch.tv/{self.name}"
 
 
@@ -269,19 +315,20 @@ class Allow(auto_prefetch.Model):
         is_enabled (bool): Indicates if the channel is enabled.
         typename (str): The type name of the object, typically "RewardCampaignChannelAllow".
 
-    JSON example:
-        "allow": {
-            "channels": [
-                {
-                    "id": "25254906",
-                    "displayName": "Stresss",
-                    "name": "stresss",
-                    "__typename": "Channel"
+    Example JSON data:
+        {
+            "data": {
+                "user": {
+                    "dropCampaign": {
+                        "allow": {
+                            "channels": [],
+                            "isEnabled": true,
+                            "__typename": "DropCampaignACL"
+                        }
+                    }
                 }
-                ],
-            "isEnabled": false,
-            "__typename": "DropCampaignACL"
-        },
+            }
+        }
     """
 
     channels = models.ManyToManyField(Channel, related_name="allow")
@@ -295,6 +342,9 @@ class Allow(auto_prefetch.Model):
 class Owner(auto_prefetch.Model):
     """Represents the owner of the reward campaign.
 
+    Used for:
+        - Reward campaigns
+
     Attributes:
         id (int): The primary key of the owner.
         slug (str): The slug identifier of the owner.
@@ -302,23 +352,27 @@ class Owner(auto_prefetch.Model):
         typename (str): The type name of the object, typically "Organization".
 
     JSON example:
-        "game": {
-            "id": "491487", # Can also be a string like 'c57a089c-088f-4402-b02d-c13281b3397e'
-            "slug": "dead-by-daylight",
-            "displayName": "Dead by Daylight",
-            "__typename": "Game"
-        },"
+        "owner": {
+            "id": "a1a51d5a-233d-41c3-9acd-a03bdab35159",
+            "name": "Out of the Park Developments",
+            "__typename": "Organization"
+        },
     """
 
-    id = models.TextField(primary_key=True)
-    slug = models.TextField(null=True, blank=True)
-    display_name = models.TextField(null=True, blank=True)
-    typename = models.TextField(null=True, blank=True)
+    id = models.TextField(primary_key=True, unique=True, help_text="The owner ID.")
+    name = models.TextField(null=True, blank=True, help_text="Owner name.")
+    slug = models.TextField(null=True, blank=True, help_text="Slug used for building URL where all the streams are.")
+    display_name = models.TextField(null=True, blank=True, help_text="Owner name.")
+    typename = models.TextField(null=True, blank=True, help_text="Always 'Organization'.")
 
     def __str__(self) -> str:
         return self.display_name or "Unknown"
 
     def get_twitch_url(self) -> str:
+        if not self.slug:
+            logger.error("Owner %s has no slug", self.display_name)
+            return "https://www.twitch.tv/"
+
         return f"https://www.twitch.tv/{self.slug}"
 
 

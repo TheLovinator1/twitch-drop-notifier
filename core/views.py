@@ -4,59 +4,16 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import hishel
-from django.conf import settings
 from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
 
-from core.data import WebhookData
-from twitch_app.models import Game, RewardCampaign
+from core.models import Game, RewardCampaign
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from django.db.models.manager import BaseManager
     from django.http import HttpRequest, HttpResponse
-    from httpx import Response
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-cache_dir: Path = settings.DATA_DIR / "cache"
-cache_dir.mkdir(exist_ok=True, parents=True)
-storage = hishel.FileStorage(base_path=cache_dir)
-controller = hishel.Controller(
-    cacheable_status_codes=[200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501],
-    allow_stale=True,
-    always_revalidate=True,
-)
-
-
-def get_webhooks(request: HttpRequest) -> list[str]:
-    """Get the webhooks from the cookie."""
-    cookie: str = request.COOKIES.get("webhooks", "")
-    return list(filter(None, cookie.split(",")))
-
-
-def get_avatar(webhook_response: Response) -> str:
-    """Get the avatar URL from the webhook response."""
-    avatar: str = "https://cdn.discordapp.com/embed/avatars/0.png"
-    if webhook_response.is_success and webhook_response.json().get("id") and webhook_response.json().get("avatar"):
-        avatar = f'https://cdn.discordapp.com/avatars/{webhook_response.json().get("id")}/{webhook_response.json().get("avatar")}.png'
-    return avatar
-
-
-def get_webhook_data(webhook: str) -> WebhookData:
-    """Get the webhook data."""
-    with hishel.CacheClient(storage=storage, controller=controller) as client:
-        webhook_response: Response = client.get(url=webhook, extensions={"cache_metadata": True})
-
-    return WebhookData(
-        name=webhook_response.json().get("name") if webhook_response.is_success else "Unknown",
-        url=webhook,
-        avatar=get_avatar(webhook_response),
-        status="Success" if webhook_response.is_success else "Failed",
-        response=webhook_response.text,
-    )
 
 
 @dataclass
@@ -68,7 +25,14 @@ class TOCItem:
 
 
 def build_toc(list_of_things: list[TOCItem]) -> str:
-    """Build the table of contents."""
+    """Build the table of contents.
+
+    Args:
+        list_of_things (list[TOCItem]): The list of table of contents items.
+
+    Returns:
+        str: The HTML for the table of contents.
+    """
     html: str = """
     <div class="position-sticky d-none d-lg-block toc">
         <div class="card">
@@ -85,7 +49,14 @@ def build_toc(list_of_things: list[TOCItem]) -> str:
 
 
 def index(request: HttpRequest) -> HttpResponse:
-    """Render the index page."""
+    """Render the index page.
+
+    Args:
+        request (HttpRequest): The request object.
+
+    Returns:
+        HttpResponse: The response object
+    """
     reward_campaigns: BaseManager[RewardCampaign] = RewardCampaign.objects.all()
 
     toc: str = build_toc([
@@ -98,7 +69,14 @@ def index(request: HttpRequest) -> HttpResponse:
 
 
 def game_view(request: HttpRequest) -> HttpResponse:
-    """Render the game view page."""
+    """Render the game view page.
+
+    Args:
+        request (HttpRequest): The request object.
+
+    Returns:
+        HttpResponse: The response object.
+    """
     games: BaseManager[Game] = Game.objects.all()
 
     tocs: list[TOCItem] = [
@@ -111,7 +89,14 @@ def game_view(request: HttpRequest) -> HttpResponse:
 
 
 def reward_campaign_view(request: HttpRequest) -> HttpResponse:
-    """Render the reward campaign view page."""
+    """Render the reward campaign view page.
+
+    Args:
+        request (HttpRequest): The request object.
+
+    Returns:
+        HttpResponse: The response object.
+    """
     reward_campaigns: BaseManager[RewardCampaign] = RewardCampaign.objects.all()
     context: dict[str, BaseManager[RewardCampaign]] = {"reward_campaigns": reward_campaigns}
     return TemplateResponse(request=request, template="reward_campaigns.html", context=context)

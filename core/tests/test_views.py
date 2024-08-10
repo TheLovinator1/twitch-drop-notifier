@@ -1,17 +1,11 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from django.test import Client, RequestFactory
+from django.test import Client
 from django.urls import reverse
 
 if TYPE_CHECKING:
     from django.http import HttpResponse
-
-
-@pytest.fixture
-def factory() -> RequestFactory:
-    """Factory for creating requests."""
-    return RequestFactory()
 
 
 @pytest.mark.django_db

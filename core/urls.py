@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from debug_toolbar.toolbar import debug_toolbar_urls
 from django.urls import URLPattern, URLResolver, path
 
 from core.views import game_view, index, reward_campaign_view
@@ -18,4 +19,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=reward_campaign_view,
         name="reward_campaigns",
     ),
+    *debug_toolbar_urls(),
 ]

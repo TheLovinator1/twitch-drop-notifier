@@ -30,14 +30,14 @@ if not DEBUG:
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
-WSGI_APPLICATION = "config.wsgi.application"
+WSGI_APPLICATION = "core.wsgi.application"
 SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY", default="")
 TIME_ZONE = "Europe/Stockholm"
 USE_TZ = True
 LANGUAGE_CODE = "en-us"
 DECIMAL_SEPARATOR = ","
 THOUSAND_SEPARATOR = " "
-ROOT_URLCONF = "config.urls"
+ROOT_URLCONF = "core.urls"
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
@@ -67,7 +67,6 @@ DISCORD_WEBHOOK_URL: str = os.getenv(key="DISCORD_WEBHOOK_URL", default="")
 
 INSTALLED_APPS: list[str] = [
     "core.apps.CoreConfig",
-    "twitch_app.apps.TwitchConfig",
     "whitenoise.runserver_nostatic",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
