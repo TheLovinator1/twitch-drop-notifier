@@ -1,7 +1,7 @@
 <div class="card mb-4 shadow-sm" id="campaign-{{ campaign.id }}">
     <div class="row g-0">
         <div class="col-md-2">
-            <img src="{{ campaign.image.image1_x_url }}"
+            <img src="{{ campaign.image_url }}"
                  alt="{{ campaign.name }}"
                  class="img-fluid rounded-start"
                  height="283"
@@ -32,7 +32,7 @@
                         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
                             {% for reward in campaign.rewards.all %}
                                 <div class="col d-flex align-items-center position-relative">
-                                    <img src="{{ reward.thumbnail_image.image1_x_url }}"
+                                    <img src="{{ reward.thumbnail_image_url }}"
                                          alt="{{ reward.name }} reward image"
                                          class="img-fluid rounded me-3"
                                          height="50"

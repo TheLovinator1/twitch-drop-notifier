@@ -1,7 +1,7 @@
-<div class="card mb-4 shadow-sm" id="game-{{ game.game_id }}">
+<div class="card mb-4 shadow-sm" id="game-{{ game.twitch_id }}">
     <div class="row g-0">
         <div class="col-md-2">
-            <img src="{{ game.image_url }}"
+            <img src="https://static-cdn.jtvnw.net/ttv-boxart/{{ game.twitch_id }}_IGDB.jpg"
                  alt="{{ game.display_name }}"
                  class="img-fluid rounded-start"
                  height="283"
@@ -11,48 +11,31 @@
         <div class="col-md-10">
             <div class="card-body">
                 <h2 class="card-title h5">
-                    <a href="{{ game.twitch_url }}" class="text-decoration-none">{{ game.display_name }}</a>
+                    <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
+                       class="text-decoration-none">{{ game.name }}</a>
                 </h2>
                 <div class="mt-auto">
-                    {% for webhook in webhooks %}
-                        <div>
-                            <img src="{{ webhook.avatar }}?size=32"
-                                 alt="{{ webhook.name }}"
-                                 class="rounded-circle"
-                                 height="32"
-                                 width="32">
-                            <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="new-drop-switch">
-                                <label class="form-check-label" for="new-drop-switch">Enable new drop notifications</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="live-drop-switch">
-                                <label class="form-check-label" for="live-drop-switch">Enable live drop notifications</label>
-                            </div>
-                        </div>
-                    {% endfor %}
+                    <!-- Insert nice buttons -->
                 </div>
                 {% for campaign in game.drop_campaigns.all %}
                     {% if not forloop.first %}<br>{% endif %}
                     <div class="mt-3">
                         <h3 class="h6">{{ campaign.name }}</h3>
                         <p class="mb-2 text-muted">
-                            Ends in: <abbr title="{{ campaign.start_at|date:'l d F H:i' }} - {{ campaign.end_at|date:'l d F H:i e' }}">{{ campaign.end_at|timeuntil }}</abbr>
+                            Ends in: <abbr title="{{ campaign.starts_at|date:'l d F H:i' }} - {{ campaign.ends_at|date:'l d F H:i e' }}">{{ campaign.ends_at|timeuntil }}</abbr>
                         </p>
                         {% if campaign.description != campaign.name %}
-                            {% if campaign.description|length > 100 %}
+                            {% if campaign.description|length > 200 %}
                                 <p>
                                     <a class="btn btn-link p-0 text-muted"
                                        data-bs-toggle="collapse"
-                                       href="#collapseDescription{{ campaign.drop_id }}"
+                                       href="#collapseDescription{{ campaign.id }}"
                                        role="button"
                                        aria-expanded="false"
-                                       aria-controls="collapseDescription{{ campaign.drop_id }}"
-                                       aria-label="Show Description">Show
-                                    Description</a>
+                                       aria-controls="collapseDescription{{ campaign.id }}"
+                                       aria-label="Show Description">Show Description</a>
                                 </p>
-                                <div class="collapse" id="collapseDescription{{ campaign.drop_id }}">
+                                <div class="collapse" id="collapseDescription{{ campaign.id }}">
                                     <div class="card card-body">{{ campaign.description }}</div>
                                     <br>
                                 </div>
@@ -62,15 +45,17 @@
                         {% endif %}
                         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
                             {% for drop in campaign.drops.all %}
-                                <div class="col d-flex align-items-center position-relative">
-                                    <img src="{{ drop.image_asset_url }}"
-                                         alt="{{ drop.name }} drop image"
-                                         class="img-fluid rounded me-3"
-                                         height="50"
-                                         width="50"
-                                         loading="lazy">
-                                    {{ drop.name }} - {{ drop.required_minutes_watched }}
-                                </div>
+                                {% for benefit in drop.benefits.all %}
+                                    <div class="col d-flex align-items-center position-relative">
+                                        <img src="{{ benefit.image_url }}"
+                                             alt="{{ benefit.name }} drop image"
+                                             class="img-fluid rounded me-3"
+                                             height="50"
+                                             width="50"
+                                             loading="lazy">
+                                        {{ benefit.name }}
+                                    </div>
+                                {% endfor %}
                             {% endfor %}
                         </div>
                     </div>

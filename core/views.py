@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
 
-from core.models import Game, RewardCampaign
+from core.models.twitch import Game, Owner, RewardCampaign
 
 if TYPE_CHECKING:
     from django.db.models.manager import BaseManager
@@ -58,13 +58,18 @@ def index(request: HttpRequest) -> HttpResponse:
         HttpResponse: The response object
     """
     reward_campaigns: BaseManager[RewardCampaign] = RewardCampaign.objects.all()
+    owners: BaseManager[Owner] = Owner.objects.all()
 
     toc: str = build_toc([
         TOCItem(name="Information", toc_id="#info-box"),
         TOCItem(name="Games", toc_id="#games"),
     ])
 
-    context: dict[str, BaseManager[RewardCampaign] | str] = {"reward_campaigns": reward_campaigns, "toc": toc}
+    context: dict[str, BaseManager[RewardCampaign] | str | BaseManager[Owner]] = {
+        "reward_campaigns": reward_campaigns,
+        "toc": toc,
+        "owners": owners,
+    }
     return TemplateResponse(request=request, template="index.html", context=context)
 
 
@@ -79,9 +84,7 @@ def game_view(request: HttpRequest) -> HttpResponse:
     """
     games: BaseManager[Game] = Game.objects.all()
 
-    tocs: list[TOCItem] = [
-        TOCItem(name=game.display_name, toc_id=game.slug) for game in games if game.display_name and game.slug
-    ]
+    tocs: list[TOCItem] = [TOCItem(name=game.name, toc_id=game.slug) for game in games if game.name and game.slug]
     toc: str = build_toc(tocs)
 
     context: dict[str, BaseManager[Game] | str] = {"games": games, "toc": toc}

@@ -12,9 +12,9 @@
                     {% include "partials/reward_campaign_card.html" %}
                 {% endfor %}
                 <h2>Organizations</h2>
-                {% for org in orgs %}
-                    <h2 id="org-{{ org|slugify }}">
-                        <a href="#org-{{ org|slugify }}">{{ org }}</a>
+                {% for org in owners %}
+                    <h2 id="org-{{ org.id }}">
+                        <a href="#org-{{ org.id }}">{{ org.name }}</a>
                     </h2>
                     {% for game in org.games.all %}
                         {% include "partials/game_card.html" %}
