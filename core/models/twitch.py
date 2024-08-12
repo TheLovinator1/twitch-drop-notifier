@@ -27,7 +27,7 @@ class Game(auto_prefetch.Model):
     box_art_url = models.URLField(null=True)  # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
     slug = models.TextField(null=True)  # "halo-infinite"
 
-    org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
+    org = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
 
     def __str__(self) -> str:
         return self.name or "Game name unknown"
@@ -49,7 +49,7 @@ class DropCampaign(auto_prefetch.Model):
     ends_at = models.DateTimeField(null=True)  # "2024-08-12T05:59:59.999Z"
     starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z""
 
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
     image_url = models.URLField(null=True)
@@ -83,7 +83,7 @@ class TimeBasedDrop(auto_prefetch.Model):
     required_minutes_watched = models.PositiveBigIntegerField(null=True)  # "120"
     starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z"
 
-    drop_campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
+    drop_campaign = auto_prefetch.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
 
 
 class Benefit(auto_prefetch.Model):
@@ -104,7 +104,12 @@ class Benefit(auto_prefetch.Model):
 
     name = models.TextField(null=True)  # "Cosmic Nexus Chimera"
 
-    time_based_drop = models.ForeignKey(TimeBasedDrop, on_delete=models.CASCADE, related_name="benefits", null=True)
+    time_based_drop = auto_prefetch.ForeignKey(
+        TimeBasedDrop,
+        on_delete=models.CASCADE,
+        related_name="benefits",
+        null=True,
+    )
 
 
 class RewardCampaign(auto_prefetch.Model):
@@ -125,7 +130,7 @@ class RewardCampaign(auto_prefetch.Model):
     external_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
     about_url = models.URLField(null=True)  # "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/"
     is_site_wide = models.BooleanField(null=True)  # "True"
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
 
     sub_goal = models.PositiveBigIntegerField(null=True)  # "1"
     minute_watched_goal = models.PositiveBigIntegerField(null=True)  # "0"
@@ -149,4 +154,4 @@ class Reward(auto_prefetch.Model):
     redemption_instructions = models.TextField(null=True)  # ""
     redemption_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
 
-    campaign = models.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
+    campaign = auto_prefetch.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
