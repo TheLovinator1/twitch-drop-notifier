@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import logging
 
-import auto_prefetch
 from django.db import models
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class Owner(auto_prefetch.Model):
+class Owner(models.Model):
     """The company or person that owns the game.
 
     Drops will be grouped by the owner. Users can also subscribe to owners.
@@ -17,8 +16,11 @@ class Owner(auto_prefetch.Model):
     id = models.TextField(primary_key=True)  # "ad299ac0-f1a5-417d-881d-952c9aed00e9"
     name = models.TextField(null=True)  # "Microsoft"
 
+    def __str__(self) -> str:
+        return self.name or "Owner name unknown"
 
-class Game(auto_prefetch.Model):
+
+class Game(models.Model):
     """This is the game we will see on the front end."""
 
     twitch_id = models.TextField(primary_key=True)  # "509658"
@@ -27,13 +29,13 @@ class Game(auto_prefetch.Model):
     box_art_url = models.URLField(null=True)  # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
     slug = models.TextField(null=True)  # "halo-infinite"
 
-    org = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
+    org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
 
     def __str__(self) -> str:
         return self.name or "Game name unknown"
 
 
-class DropCampaign(auto_prefetch.Model):
+class DropCampaign(models.Model):
     """This is the drop campaign we will see on the front end."""
 
     id = models.TextField(primary_key=True)  # "f257ce6e-502a-11ef-816e-0a58a9feac02"
@@ -49,7 +51,7 @@ class DropCampaign(auto_prefetch.Model):
     ends_at = models.DateTimeField(null=True)  # "2024-08-12T05:59:59.999Z"
     starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z""
 
-    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
     image_url = models.URLField(null=True)
@@ -57,8 +59,11 @@ class DropCampaign(auto_prefetch.Model):
     name = models.TextField(null=True)  # "HCS Open Series - Week 1 - DAY 2 - AUG11"
     status = models.TextField(null=True)  # "ACTIVE"
 
+    def __str__(self) -> str:
+        return self.name or "Drop campaign name unknown"
 
-class Channel(auto_prefetch.Model):
+
+class Channel(models.Model):
     """This is the channel we will see on the front end."""
 
     twitch_id = models.TextField(primary_key=True)  # "222719079"
@@ -69,8 +74,11 @@ class Channel(auto_prefetch.Model):
 
     drop_campaigns = models.ManyToManyField(DropCampaign, related_name="channels")
 
+    def __str__(self) -> str:
+        return self.display_name or "Channel name unknown"
 
-class TimeBasedDrop(auto_prefetch.Model):
+
+class TimeBasedDrop(models.Model):
     """This is the drop we will see on the front end."""
 
     id = models.TextField(primary_key=True)  # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
@@ -83,10 +91,13 @@ class TimeBasedDrop(auto_prefetch.Model):
     required_minutes_watched = models.PositiveBigIntegerField(null=True)  # "120"
     starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z"
 
-    drop_campaign = auto_prefetch.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
+    drop_campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
+
+    def __str__(self) -> str:
+        return self.name or "Drop name unknown"
 
 
-class Benefit(auto_prefetch.Model):
+class Benefit(models.Model):
     """This is the benefit we will see on the front end."""
 
     id = models.TextField(primary_key=True)  # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
@@ -104,15 +115,18 @@ class Benefit(auto_prefetch.Model):
 
     name = models.TextField(null=True)  # "Cosmic Nexus Chimera"
 
-    time_based_drop = auto_prefetch.ForeignKey(
+    time_based_drop = models.ForeignKey(
         TimeBasedDrop,
         on_delete=models.CASCADE,
         related_name="benefits",
         null=True,
     )
 
+    def __str__(self) -> str:
+        return self.name or "Benefit name unknown"
 
-class RewardCampaign(auto_prefetch.Model):
+
+class RewardCampaign(models.Model):
     """Buy subscriptions to earn rewards."""
 
     id = models.TextField(primary_key=True)  # "dc4ff0b4-4de0-11ef-9ec3-621fb0811846"
@@ -130,7 +144,7 @@ class RewardCampaign(auto_prefetch.Model):
     external_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
     about_url = models.URLField(null=True)  # "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/"
     is_site_wide = models.BooleanField(null=True)  # "True"
-    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
 
     sub_goal = models.PositiveBigIntegerField(null=True)  # "1"
     minute_watched_goal = models.PositiveBigIntegerField(null=True)  # "0"
@@ -138,8 +152,11 @@ class RewardCampaign(auto_prefetch.Model):
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png"
     image_url = models.URLField(null=True)
 
+    def __str__(self) -> str:
+        return self.name or "Reward campaign name unknown"
 
-class Reward(auto_prefetch.Model):
+
+class Reward(models.Model):
     """This from the RewardCampaign."""
 
     id = models.TextField(primary_key=True)  # "dc2e9810-4de0-11ef-9ec3-621fb0811846"
@@ -154,4 +171,7 @@ class Reward(auto_prefetch.Model):
     redemption_instructions = models.TextField(null=True)  # ""
     redemption_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
 
-    campaign = auto_prefetch.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
+    campaign = models.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
+
+    def __str__(self) -> str:
+        return self.name or "Reward name unknown"

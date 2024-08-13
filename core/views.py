@@ -4,10 +4,12 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from django.db.models import Prefetch
 from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
+from django.utils import timezone  # type: ignore  # noqa: PGH003
 
-from core.models.twitch import Game, Owner, RewardCampaign
+from core.models.twitch import DropCampaign, Game, RewardCampaign
 
 if TYPE_CHECKING:
     from django.db.models.manager import BaseManager
@@ -57,18 +59,30 @@ def index(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The response object
     """
-    reward_campaigns: BaseManager[RewardCampaign] = RewardCampaign.objects.all()
-    owners: BaseManager[Owner] = Owner.objects.all()
+    reward_campaigns: BaseManager[RewardCampaign] = (
+        RewardCampaign.objects.all()
+        .prefetch_related("rewards")
+        .filter(ends_at__gt=timezone.now(), starts_at__lt=timezone.now())
+    )
+    future_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(
+        ends_at__gt=timezone.now(),
+        starts_at__lt=timezone.now(),
+    )
 
-    toc: str = build_toc([
-        TOCItem(name="Information", toc_id="#info-box"),
-        TOCItem(name="Games", toc_id="#games"),
-    ])
+    games: BaseManager[Game] = Game.objects.all().prefetch_related(
+        Prefetch("drop_campaigns", queryset=future_campaigns.prefetch_related("drops__benefits")),
+    )
+    tocs: list[TOCItem] = []
+    for game in games.all():
+        game_name: str = game.name or "<div class='text-muted'>Game name unknown</div>"
+        tocs.append(TOCItem(name=game_name, toc_id=f"#{game.twitch_id}"))
 
-    context: dict[str, BaseManager[RewardCampaign] | str | BaseManager[Owner]] = {
+    toc: str = build_toc(tocs)
+
+    context: dict[str, BaseManager[RewardCampaign] | str | BaseManager[Game]] = {
         "reward_campaigns": reward_campaigns,
+        "games": games,
         "toc": toc,
-        "owners": owners,
     }
     return TemplateResponse(request=request, template="index.html", context=context)
 
@@ -84,10 +98,7 @@ def game_view(request: HttpRequest) -> HttpResponse:
     """
     games: BaseManager[Game] = Game.objects.all()
 
-    tocs: list[TOCItem] = [TOCItem(name=game.name, toc_id=game.slug) for game in games if game.name and game.slug]
-    toc: str = build_toc(tocs)
-
-    context: dict[str, BaseManager[Game] | str] = {"games": games, "toc": toc}
+    context: dict[str, BaseManager[Game] | str] = {"games": games}
     return TemplateResponse(request=request, template="games.html", context=context)
 
 

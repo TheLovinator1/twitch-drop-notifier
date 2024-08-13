@@ -1,6 +1,0 @@
-djlint
-pip
-pre-commit
-pytest
-pytest-django
-ruff
