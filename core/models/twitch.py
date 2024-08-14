@@ -24,9 +24,13 @@ class Game(models.Model):
     """This is the game we will see on the front end."""
 
     twitch_id = models.TextField(primary_key=True)  # "509658"
-    game_url = models.URLField(null=True)  # "https://www.twitch.tv/directory/category/halo-infinite"
-    name = models.TextField(null=True)  # "Halo Infinite"
-    box_art_url = models.URLField(null=True)  # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
+
+    # "https://www.twitch.tv/directory/category/halo-infinite"
+    game_url = models.URLField(null=True, default="https://www.twitch.tv/")
+    name = models.TextField(null=True, default="Game name unknown")  # "Halo Infinite"
+
+    # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
+    box_art_url = models.URLField(null=True, default="https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg")
     slug = models.TextField(null=True)  # "halo-infinite"
 
     org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
@@ -67,9 +71,9 @@ class Channel(models.Model):
     """This is the channel we will see on the front end."""
 
     twitch_id = models.TextField(primary_key=True)  # "222719079"
-    display_name = models.TextField(null=True)  # "LVTHalo"
+    display_name = models.TextField(null=True, default="Channel name unknown")  # "LVTHalo"
     name = models.TextField(null=True)  # "lvthalo"
-    twitch_url = models.URLField(null=True)  # "https://www.twitch.tv/lvthalo"
+    twitch_url = models.URLField(null=True, default="https://www.twitch.tv/")  # "https://www.twitch.tv/lvthalo"
     live = models.BooleanField(default=False)  # "True"
 
     drop_campaigns = models.ManyToManyField(DropCampaign, related_name="channels")

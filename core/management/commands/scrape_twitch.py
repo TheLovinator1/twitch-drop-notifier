@@ -47,13 +47,16 @@ def get_profile_dir() -> Path:
     return profile_dir
 
 
-def save_json(campaign: dict, dir_name: str) -> None:
+def save_json(campaign: dict | None, dir_name: str) -> None:
     """Save JSON data to a file.
 
     Args:
         campaign (dict): The JSON data to save.
         dir_name (Path): The directory to save the JSON data to.
     """
+    if not campaign:
+        return
+
     save_dir: Path = Path(dir_name)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -64,38 +67,47 @@ def save_json(campaign: dict, dir_name: str) -> None:
         json.dump(campaign, f, indent=4)
 
 
-async def add_reward_campaign(campaign: dict) -> None:
+async def add_reward_campaign(campaign: dict | None) -> None:  # noqa: C901
     """Add a reward campaign to the database.
 
     Args:
         campaign (dict): The reward campaign to add.
     """
+    if not campaign:
+        return
+
     logger.info("Adding reward campaign to database")
     for reward_campaign in campaign["data"]["rewardCampaignsAvailableToUser"]:
-        our_reward_campaign, created = await RewardCampaign.objects.aget_or_create(
+        mappings: dict[str, str] = {
+            "brand": "brand",
+            "createdAt": "created_at",
+            "startsAt": "starts_at",
+            "endsAt": "ends_at",
+            "status": "status",
+            "summary": "summary",
+            "instructions": "instructions",
+            "rewardValueURLParam": "reward_value_url_param",
+            "externalURL": "external_url",
+            "aboutURL": "about_url",
+            "isSitewide": "is_site_wide",
+        }
+        defaults = {new_key: reward_campaign[key] for key, new_key in mappings.items() if reward_campaign.get(key)}
+
+        if reward_campaign.get("unlockRequirements", {}).get("subsGoal"):
+            defaults["sub_goal"] = reward_campaign["unlockRequirements"]["subsGoal"]
+
+        if reward_campaign.get("unlockRequirements", {}).get("minuteWatchedGoal"):
+            defaults["minute_watched_goal"] = reward_campaign["unlockRequirements"]["minuteWatchedGoal"]
+
+        if reward_campaign.get("image"):
+            defaults["image_url"] = reward_campaign["image"]["image1xURL"]
+
+        our_reward_campaign, created = await RewardCampaign.objects.aupdate_or_create(
             id=reward_campaign["id"],
-            defaults={
-                "name": reward_campaign["name"],
-                "brand": reward_campaign["brand"],
-                "starts_at": reward_campaign["startsAt"],
-                "ends_at": reward_campaign["endsAt"],
-                "status": reward_campaign["status"],
-                "summary": reward_campaign["summary"],
-                "instructions": reward_campaign["instructions"],
-                "reward_value_url_param": reward_campaign["rewardValueURLParam"],
-                "external_url": reward_campaign["externalURL"],
-                "about_url": reward_campaign["aboutURL"],
-                "is_site_wide": reward_campaign["isSitewide"],
-                "sub_goal": reward_campaign["unlockRequirements"]["subsGoal"],
-                "minute_watched_goal": reward_campaign["unlockRequirements"]["minuteWatchedGoal"],
-                "image_url": reward_campaign["image"]["image1xURL"],
-                # "game" # To be implemented
-            },
+            defaults=defaults,
         )
         if created:
             logger.info("Added reward campaign %s", our_reward_campaign.id)
-        else:
-            logger.info("Updated reward campaign %s", our_reward_campaign.id)
 
         if reward_campaign["game"]:
             # TODO(TheLovinator): Add game to reward campaign  # noqa: TD003
@@ -104,17 +116,21 @@ async def add_reward_campaign(campaign: dict) -> None:
 
         # Add rewards
         for reward in reward_campaign["rewards"]:
-            our_reward, created = await Reward.objects.aget_or_create(
+            mappings: dict[str, str] = {
+                "name": "name",
+                "bannerImage": "banner_image_url",
+                "thumbnailImage": "thumbnail_image_url",
+                "earnableUntil": "earnable_until",
+                "redemptionInstructions": "redemption_instructions",
+                "redemptionURL": "redemption_url",
+            }
+            defaults = {new_key: reward[key] for key, new_key in mappings.items() if reward.get(key)}
+
+            if our_reward_campaign:
+                defaults["campaign"] = our_reward_campaign
+            our_reward, created = await Reward.objects.aupdate_or_create(
                 id=reward["id"],
-                defaults={
-                    "name": reward["name"],
-                    "banner_image_url": reward["bannerImage"]["image1xURL"],
-                    "thumbnail_image_url": reward["thumbnailImage"]["image1xURL"],
-                    "earnable_until": reward["earnableUntil"],
-                    "redemption_instructions": reward["redemptionInstructions"],
-                    "redemption_url": reward["redemptionURL"],
-                    "campaign": our_reward_campaign,
-                },
+                defaults=defaults,
             )
             if created:
                 logger.info("Added reward %s", our_reward.id)
@@ -122,39 +138,41 @@ async def add_reward_campaign(campaign: dict) -> None:
                 logger.info("Updated reward %s", our_reward.id)
 
 
-async def add_or_update_game(game_json: dict, owner: Owner | None) -> Game | None:
+async def add_or_update_game(game_json: dict | None) -> Game | None:
     """Add or update a game in the database.
 
     Args:
         game_json (dict): The game to add or update.
-        owner (Owner): The owner of the game.
 
     Returns:
         Game: The game that was added or updated.
     """
-    if game_json:
-        game_url: str | None = (
-            f"https://www.twitch.tv/directory/game/{game_json["slug"]}" if game_json["slug"] else None
-        )
-        our_game, created = await Game.objects.aget_or_create(
-            twitch_id=game_json["id"],
-            defaults={
-                "slug": game_json["slug"],
-                "name": game_json["displayName"],
-                "game_url": game_url,
-                "org": owner,
-                # TODO(TheLovinator): Add box_art_url to game  # noqa: TD003
-            },
-        )
-        if created:
-            logger.info("Added game %s", our_game.twitch_id)
-        else:
-            logger.info("Updated game %s", our_game.twitch_id)
-        return our_game
-    return None
+    if not game_json:
+        return None
+
+    mappings: dict[str, str] = {
+        "slug": "slug",
+        "displayName": "name",
+        "boxArtURL": "box_art_url",
+    }
+    defaults = {new_key: game_json[key] for key, new_key in mappings.items() if game_json.get(key)}
+
+    if game_json.get("slug"):
+        defaults["game_url"] = f"https://www.twitch.tv/directory/game/{game_json["slug"]}"
+
+    if game_json.get("owner"):
+        owner: Owner | None = await add_or_update_owner(game_json["owner"])
+        if owner:
+            defaults["org"] = owner
+
+    our_game, created = await Game.objects.aupdate_or_create(twitch_id=game_json["id"], defaults=defaults)
+    if created:
+        logger.info("Added game %s", our_game.twitch_id)
+
+    return our_game
 
 
-async def add_or_update_owner(owner_json: dict) -> Owner | None:
+async def add_or_update_owner(owner_json: dict | None) -> Owner | None:
     """Add or update an owner in the database.
 
     Args:
@@ -163,17 +181,19 @@ async def add_or_update_owner(owner_json: dict) -> Owner | None:
     Returns:
         Owner: The owner that was added or updated.
     """
-    if owner_json:
-        our_owner, created = await Owner.objects.aget_or_create(
-            id=owner_json["id"],
-            defaults={"name": owner_json["name"]},
-        )
-        if created:
-            logger.info("Added owner %s", our_owner.id)
-        else:
-            logger.info("Updated owner %s", our_owner.id)
-        return our_owner
-    return None
+    if not owner_json:
+        return None
+
+    defaults = {}
+
+    if owner_json.get("name"):
+        defaults["name"] = owner_json["name"]
+
+    our_owner, created = await Owner.objects.aupdate_or_create(id=owner_json["id"], defaults=defaults)
+    if created:
+        logger.info("Added owner %s", our_owner.id)
+
+    return our_owner
 
 
 async def add_or_update_channels(channels_json: list[dict]) -> list[Channel] | None:
@@ -190,20 +210,18 @@ async def add_or_update_channels(channels_json: list[dict]) -> list[Channel] | N
 
     channels: list[Channel] = []
     for channel_json in channels_json:
-        twitch_url: str | None = f"https://www.twitch.tv/{channel_json["name"]}" if channel_json["name"] else None
-        our_channel, created = await Channel.objects.aget_or_create(
-            twitch_id=channel_json["id"],
-            defaults={
-                "name": channel_json["name"],
-                "display_name": channel_json["displayName"],
-                "twitch_url": twitch_url,
-                "live": False,  # Toggle this later
-            },
-        )
+        defaults = {}
+        if channel_json.get("displayName"):
+            defaults["display_name"] = channel_json["displayName"]
+
+        if channel_json.get("name"):
+            defaults["name"] = channel_json["name"]
+            defaults["twitch_url"] = f"https://www.twitch.tv/{channel_json["name"]}"
+
+        our_channel, created = await Channel.objects.aupdate_or_create(twitch_id=channel_json["id"], defaults=defaults)
         if created:
             logger.info("Added channel %s", our_channel.twitch_id)
-        else:
-            logger.info("Updated channel %s", our_channel.twitch_id)
+
         channels.append(our_channel)
 
     return channels
@@ -216,82 +234,103 @@ async def add_benefit(benefit: dict, time_based_drop: TimeBasedDrop) -> None:
         benefit (dict): The benefit to add.
         time_based_drop (TimeBasedDrop): The time-based drop the benefit belongs to.
     """
-    our_benefit, created = await Benefit.objects.aget_or_create(
-        id=benefit["id"],
-        defaults={
-            "twitch_created_at": benefit["createdAt"],
-            "entitlement_limit": benefit["entitlementLimit"],
-            "image_url": benefit["imageAssetURL"],
-            "is_ios_available": benefit["isIosAvailable"],
-            "name": benefit["name"],
-            "time_based_drop": time_based_drop,
-        },
-    )
+    logger.info("Adding benefit to database")
+
+    mappings = {
+        "createdAt": "twitch_created_at",
+        "entitlementLimit": "entitlement_limit",
+        "imageAssetURL": "image_url",
+        "isIosAvailable": "is_ios_available",
+        "name": "name",
+    }
+
+    defaults = {new_key: benefit[key] for key, new_key in mappings.items() if benefit.get(key)}
+    our_benefit, created = await Benefit.objects.aupdate_or_create(id=benefit["id"], defaults=defaults)
     if created:
         logger.info("Added benefit %s", our_benefit.id)
-    else:
-        logger.info("Updated benefit %s", our_benefit.id)
+
+    if time_based_drop:
+        await time_based_drop.benefits.aadd(our_benefit)  # type: ignore  # noqa: PGH003
 
 
-async def add_drop_campaign(drop_campaign: dict) -> None:
+async def add_drop_campaign(drop_campaign: dict | None) -> None:
     """Add a drop campaign to the database.
 
     Args:
         drop_campaign (dict): The drop campaign to add.
     """
-    logger.info("Adding drop campaign to database")
-    owner: Owner | None = await add_or_update_owner(drop_campaign["owner"])
-    game: Game | None = await add_or_update_game(drop_campaign["game"], owner)
-    channels: list[Channel] | None = await add_or_update_channels(drop_campaign["allow"]["channels"])
+    if not drop_campaign:
+        return
 
-    our_drop_campaign, created = await DropCampaign.objects.aget_or_create(
+    defaults = {}
+    if drop_campaign.get("game"):
+        game: Game | None = await add_or_update_game(drop_campaign["game"])
+        defaults["game"] = game
+
+    mappings: dict[str, str] = {
+        "accountLinkURL": "account_link_url",
+        "description": "description",
+        "detailsURL": "details_url",
+        "endAt": "ends_at",
+        "startAt": "starts_at",
+        "imageURL": "image_url",
+        "name": "name",
+        "status": "status",
+    }
+    for key, new_key in mappings.items():
+        if drop_campaign.get(key):
+            defaults[new_key] = drop_campaign[key]
+
+    our_drop_campaign, created = await DropCampaign.objects.aupdate_or_create(
         id=drop_campaign["id"],
-        defaults={
-            "account_link_url": drop_campaign["accountLinkURL"],
-            "description": drop_campaign["description"],
-            "details_url": drop_campaign["detailsURL"],
-            "ends_at": drop_campaign["endAt"],
-            "starts_at": drop_campaign["startAt"],
-            "image_url": drop_campaign["imageURL"],
-            "name": drop_campaign["name"],
-            "status": drop_campaign["status"],
-            "game": game,
-        },
+        defaults=defaults,
     )
     if created:
         logger.info("Added drop campaign %s", our_drop_campaign.id)
-    else:
-        logger.info("Updated drop campaign %s", our_drop_campaign.id)
 
-    if channels:
-        our_drop_campaign.channels.aset(channels)  # type: ignore  # noqa: PGH003
+    if drop_campaign.get("allow") and drop_campaign["allow"].get("channels"):
+        channels: list[Channel] | None = await add_or_update_channels(drop_campaign["allow"]["channels"])
+        if channels:
+            for channel in channels:
+                await channel.drop_campaigns.aadd(our_drop_campaign)
 
-    # Add time-based drops
-    for time_based_drop in drop_campaign["timeBasedDrops"]:
-        if time_based_drop["preconditionDrops"]:
+    await add_time_based_drops(drop_campaign, our_drop_campaign)
+
+
+async def add_time_based_drops(drop_campaign: dict, our_drop_campaign: DropCampaign) -> None:
+    """Add time-based drops to the database.
+
+    Args:
+        drop_campaign (dict): The drop campaign containing time-based drops.
+        our_drop_campaign (DropCampaign): The drop campaign object in the database.
+    """
+    for time_based_drop in drop_campaign.get("timeBasedDrops", []):
+        if time_based_drop.get("preconditionDrops"):
             # TODO(TheLovinator): Add precondition drops to time-based drop  # noqa: TD003
-            # TODO(TheLovinator): Send JSON to Discord # noqa: TD003
+            # TODO(TheLovinator): Send JSON to Discord  # noqa: TD003
             logger.error("Not implemented: Add precondition drops to time-based drop, JSON: %s", time_based_drop)
 
-        our_time_based_drop, created = await TimeBasedDrop.objects.aget_or_create(
+        mappings = {
+            "requiredSubs": "required_subs",
+            "endAt": "ends_at",
+            "name": "name",
+            "requiredMinutesWatched": "required_minutes_watched",
+            "startAt": "starts_at",
+        }
+        defaults = {new_key: time_based_drop[key] for key, new_key in mappings.items() if time_based_drop.get(key)}
+        if our_drop_campaign:
+            defaults["drop_campaign"] = our_drop_campaign
+
+        our_time_based_drop, created = await TimeBasedDrop.objects.aupdate_or_create(
             id=time_based_drop["id"],
-            defaults={
-                "required_subs": time_based_drop["requiredSubs"],
-                "ends_at": time_based_drop["endAt"],
-                "name": time_based_drop["name"],
-                "required_minutes_watched": time_based_drop["requiredMinutesWatched"],
-                "starts_at": time_based_drop["startAt"],
-                "drop_campaign": our_drop_campaign,
-            },
+            defaults=defaults,
         )
         if created:
             logger.info("Added time-based drop %s", our_time_based_drop.id)
-        else:
-            logger.info("Updated time-based drop %s", our_time_based_drop.id)
 
-        # Add benefits
-        for benefit_edge in time_based_drop["benefitEdges"]:
-            await add_benefit(benefit_edge["benefit"], our_time_based_drop)
+        if time_based_drop.get("benefitEdges") and our_time_based_drop:
+            for benefit_edge in time_based_drop["benefitEdges"]:
+                await add_benefit(benefit_edge["benefit"], our_time_based_drop)
 
 
 async def process_json_data(num: int, campaign: dict | None) -> None:
@@ -311,7 +350,7 @@ async def process_json_data(num: int, campaign: dict | None) -> None:
         return
 
     # This is a Reward Campaign
-    if "rewardCampaignsAvailableToUser" in campaign["data"]:
+    if "rewardCampaignsAvailableToUser" in campaign.get("data", {}):
         save_json(campaign, "reward_campaigns")
         await add_reward_campaign(campaign)
 
@@ -321,9 +360,11 @@ async def process_json_data(num: int, campaign: dict | None) -> None:
             return
 
         save_json(campaign, "drop_campaign")
-        await add_drop_campaign(campaign["data"]["user"]["dropCampaign"])
 
-    if "dropCampaigns" in campaign.get("data", {}).get("user", {}):
+        if campaign.get("data", {}).get("user", {}).get("dropCampaign"):
+            await add_drop_campaign(campaign["data"]["user"]["dropCampaign"])
+
+    if "dropCampaigns" in campaign.get("data", {}).get("currentUser", {}):
         for drop_campaign in campaign["data"]["currentUser"]["dropCampaigns"]:
             save_json(campaign, "drop_campaigns")
             await add_drop_campaign(drop_campaign)
