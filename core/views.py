@@ -9,7 +9,7 @@ from django.db.models.manager import BaseManager
 from django.template.response import TemplateResponse
 from django.utils import timezone  # type: ignore  # noqa: PGH003
 
-from core.models.twitch import DropCampaign, Game, RewardCampaign
+from core.models import DropCampaign, Game, RewardCampaign
 
 if TYPE_CHECKING:
     from django.db.models.manager import BaseManager

@@ -43,7 +43,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
-
+AUTH_USER_MODEL = "core.User"
 if DEBUG:
     INTERNAL_IPS: list[str] = ["127.0.0.1"]
 

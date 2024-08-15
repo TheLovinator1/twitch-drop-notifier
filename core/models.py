@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -179,3 +180,64 @@ class Reward(models.Model):
 
     def __str__(self) -> str:
         return self.name or "Reward name unknown"
+
+
+class User(AbstractUser):
+    """Extended User model to include subscriptions."""
+
+    subscribed_games = models.ManyToManyField(
+        "Game",
+        through="GameSubscription",
+        related_name="subscribed_users",
+        blank=True,
+    )
+    subscribed_owners = models.ManyToManyField(
+        "Owner",
+        through="OwnerSubscription",
+        related_name="subscribed_users",
+        blank=True,
+    )
+    subscribe_to_news = models.BooleanField(default=False, help_text="Subscribe to news")
+    subscribe_to_new_games = models.BooleanField(default=False, help_text="Subscribe to new games")
+
+    def __str__(self) -> str:
+        return self.username
+
+
+class DiscordWebhook(models.Model):
+    """A Discord webhook for sending notifications."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="discord_webhooks")
+    url = models.URLField()
+    name = models.CharField(max_length=255)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.user.username})"
+
+
+class GameSubscription(models.Model):
+    """A subscription to a specific game with a chosen webhook."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    webhook = models.ForeignKey(DiscordWebhook, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ("user", "game")
+
+    def __str__(self) -> str:
+        return f"{self.user.username} -> {self.game.name} via {self.webhook.name}"
+
+
+class OwnerSubscription(models.Model):
+    """A subscription to a specific owner with a chosen webhook."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
+    webhook = models.ForeignKey(DiscordWebhook, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ("user", "owner")
+
+    def __str__(self) -> str:
+        return f"{self.user.username} -> {self.owner.name} via {self.webhook.name}"

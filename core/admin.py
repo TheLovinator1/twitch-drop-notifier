@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models.twitch import Benefit, Channel, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
+from .models import Benefit, Channel, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
 
 admin.site.register(Game)
 admin.site.register(Owner)

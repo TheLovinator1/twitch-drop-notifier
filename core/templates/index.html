@@ -7,7 +7,10 @@
             <div class="col-lg-9">
                 {% include "partials/info_box.html" %}
                 {% include "partials/news.html" %}
-                <h2>Reward Campaigns</h2>
+                <h2>
+                    Reward campaigns -
+                    <div class="d-inline text-muted">{{ reward_campaigns.count }} campaigns</div>
+                </h2>
                 {% for campaign in reward_campaigns %}
                     {% include "partials/reward_campaign_card.html" %}
                 {% endfor %}
@@ -16,7 +19,6 @@
                     <div class="d-inline text-muted ">{{ games.count }} games</div>
                 </h2>
                 {% for game in games %}
-                    {# Only show games with drop campaigns #}
                     {% if game.drop_campaigns.count > 0 %}
                         {% include "partials/game_card.html" %}
                     {% endif %}

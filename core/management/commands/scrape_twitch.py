@@ -10,7 +10,7 @@ from platformdirs import user_data_dir
 from playwright.async_api import Playwright, async_playwright
 from playwright.async_api._generated import Response
 
-from core.models.twitch import Benefit, Channel, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
+from core.models import Benefit, Channel, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
 
 if TYPE_CHECKING:
     from playwright.async_api._generated import BrowserContext, Page
@@ -74,6 +74,7 @@ async def add_reward_campaign(campaign: dict | None) -> None:  # noqa: C901
     Args:
         campaign (dict): The reward campaign to add.
     """
+    # sourcery skip: low-code-quality
     if not campaign:
         return
 
