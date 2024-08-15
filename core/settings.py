@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Literal
 
 import sentry_sdk
 from django.contrib import messages
@@ -74,6 +75,11 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.twitch",
     "simple_history",
     "debug_toolbar",
 ]
@@ -89,6 +95,7 @@ MIDDLEWARE: list[str] = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 TEMPLATES = [
@@ -177,3 +184,25 @@ CACHES = {
         "LOCATION": DATA_DIR / "django_cache",
     },
 }
+SITE_ID = 1
+AUTHENTICATION_BACKENDS: list[str] = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+SOCIALACCOUNT_PROVIDERS = {
+    "twitch": {
+        "APP": {"client_id": os.environ["TWITCH_CLIENT_ID"], "secret": os.environ["TWITCH_CLIENT_SECRET"], "key": ""},
+        "SCOPE": [],
+        "AUTH_PARAMS": {
+            "force_verify": "true",
+        },
+    },
+}
+
+SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_ONLY = True
+ACCOUNT_EMAIL_VERIFICATION: Literal["mandatory", "optional", "none"] = "none"
+ACCOUNT_SESSION_REMEMBER = True
+LOGIN_REDIRECT_URL = "/"
+ACCOUNT_LOGOUT_REDIRECT_URL = "/"
