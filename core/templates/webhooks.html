@@ -24,5 +24,27 @@
             </form>
         </div>
         <h2 class="mt-5">Webhooks</h2>
+        {% if webhooks %}
+            <div class="list-group">
+                {% for webhook in webhooks %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            {% if webhook.avatar %}
+                                <img src="https://cdn.discordapp.com/avatars/{{ webhook.id }}/a_{{ webhook.avatar }}.png"
+                                     alt="Avatar of {{ webhook.name }}"
+                                     class="rounded-circle"
+                                     height="32"
+                                     width="32">
+                            {% endif %}
+                            <a href="https://discord.com/api/webhooks/{{ webhook.id }}/{{ webhook.token }}"
+                               target="_blank"
+                               class="text-decoration-none">{{ webhook.name }}</a>
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">No webhooks added</div>
+        {% endif %}
     </div>
 {% endblock content %}

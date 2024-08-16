@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+class User(AbstractUser): ...
 
 
 class Owner(models.Model):
@@ -182,62 +186,41 @@ class Reward(models.Model):
         return self.name or "Reward name unknown"
 
 
-class User(AbstractUser):
-    """Extended User model to include subscriptions."""
+class Webhook(models.Model):
+    """Discord webhook."""
 
-    subscribed_games = models.ManyToManyField(
-        "Game",
-        through="GameSubscription",
-        related_name="subscribed_users",
-        blank=True,
-    )
-    subscribed_owners = models.ManyToManyField(
-        "Owner",
-        through="OwnerSubscription",
-        related_name="subscribed_users",
-        blank=True,
-    )
-    subscribe_to_news = models.BooleanField(default=False, help_text="Subscribe to news")
-    subscribe_to_new_games = models.BooleanField(default=False, help_text="Subscribe to new games")
+    avatar = models.TextField(null=True)
+    channel_id = models.TextField(null=True)
+    guild_id = models.TextField(null=True)
+    id = models.TextField(primary_key=True)
+    name = models.TextField(null=True)
+    type = models.TextField(null=True)
+    token = models.TextField()
+    url = models.TextField()
 
-    def __str__(self) -> str:
-        return self.username
+    # Get notified when the site finds a new game.
+    subscribed_new_games = models.ManyToManyField(Game, related_name="subscribed_new_games")
 
+    # Get notified when a drop goes live.
+    subscribed_live_games = models.ManyToManyField(Game, related_name="subscribed_live_games")
 
-class DiscordWebhook(models.Model):
-    """A Discord webhook for sending notifications."""
+    # Get notified when the site finds a new drop campaign for a specific organization.
+    subscribed_new_owners = models.ManyToManyField(Owner, related_name="subscribed_new_owners")
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="discord_webhooks")
-    url = models.URLField()
-    name = models.CharField(max_length=255)
+    # Get notified when a drop goes live for a specific organization.
+    subscribed_live_owners = models.ManyToManyField(Owner, related_name="subscribed_live_owners")
 
-    def __str__(self) -> str:
-        return f"{self.name} ({self.user.username})"
-
-
-class GameSubscription(models.Model):
-    """A subscription to a specific game with a chosen webhook."""
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    game = models.ForeignKey(Game, on_delete=models.CASCADE)
-    webhook = models.ForeignKey(DiscordWebhook, on_delete=models.CASCADE)
+    # So we don't spam the same drop campaign over and over.
+    seen_drops = models.ManyToManyField(DropCampaign, related_name="seen_drops")
 
     class Meta:
-        unique_together = ("user", "game")
+        unique_together: ClassVar[list[str]] = ["id", "token"]
 
     def __str__(self) -> str:
-        return f"{self.user.username} -> {self.game.name} via {self.webhook.name}"
+        return f"{self.name} - {self.get_webhook_url()}"
 
-
-class OwnerSubscription(models.Model):
-    """A subscription to a specific owner with a chosen webhook."""
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
-    webhook = models.ForeignKey(DiscordWebhook, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ("user", "owner")
-
-    def __str__(self) -> str:
-        return f"{self.user.username} -> {self.owner.name} via {self.webhook.name}"
+    def get_webhook_url(self) -> str:
+        try:
+            return f"https://discord.com/api/webhooks/{self.id}/{self.token}"
+        except AttributeError:
+            return ""

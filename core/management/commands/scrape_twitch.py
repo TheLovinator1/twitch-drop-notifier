@@ -68,78 +68,99 @@ def save_json(campaign: dict | None, dir_name: str) -> None:
         json.dump(campaign, f, indent=4)
 
 
-async def add_reward_campaign(campaign: dict | None) -> None:  # noqa: C901
+async def add_reward_campaign(campaign: dict | None) -> None:
     """Add a reward campaign to the database.
 
     Args:
         campaign (dict): The reward campaign to add.
     """
-    # sourcery skip: low-code-quality
     if not campaign:
         return
 
-    logger.info("Adding reward campaign to database")
+    logger.info("Adding reward campaign to database %s", campaign["id"])
     if "data" in campaign and "rewardCampaignsAvailableToUser" in campaign["data"]:
-        mappings: dict[str, str] = {
-            "brand": "brand",
-            "createdAt": "created_at",
-            "startsAt": "starts_at",
-            "endsAt": "ends_at",
-            "status": "status",
-            "summary": "summary",
-            "instructions": "instructions",
-            "rewardValueURLParam": "reward_value_url_param",
-            "externalURL": "external_url",
-            "aboutURL": "about_url",
-            "isSitewide": "is_site_wide",
-        }
-
         for reward_campaign in campaign["data"]["rewardCampaignsAvailableToUser"]:
-            defaults = {new_key: reward_campaign[key] for key, new_key in mappings.items() if reward_campaign.get(key)}
+            our_reward_campaign = await handle_reward_campaign(reward_campaign)
 
-            if reward_campaign.get("unlockRequirements", {}).get("subsGoal"):
-                defaults["sub_goal"] = reward_campaign["unlockRequirements"]["subsGoal"]
+            if "rewards" in reward_campaign:
+                for reward in reward_campaign["rewards"]:
+                    await handle_rewards(reward, our_reward_campaign)
 
-            if reward_campaign.get("unlockRequirements", {}).get("minuteWatchedGoal"):
-                defaults["minute_watched_goal"] = reward_campaign["unlockRequirements"]["minuteWatchedGoal"]
 
-            if reward_campaign.get("image"):
-                defaults["image_url"] = reward_campaign["image"]["image1xURL"]
+async def handle_rewards(reward: dict, reward_campaign: RewardCampaign | None) -> None:
+    """Add or update a reward in the database.
 
-            our_reward_campaign, created = await RewardCampaign.objects.aupdate_or_create(
-                id=reward_campaign["id"],
-                defaults=defaults,
-            )
-            if created:
-                logger.info("Added reward campaign %s", our_reward_campaign.id)
+    Args:
+        reward (dict): The JSON from Twitch.
+        reward_campaign (RewardCampaign | None): The reward campaign the reward belongs to.
+    """
+    mappings: dict[str, str] = {
+        "name": "name",
+        "earnableUntil": "earnable_until",
+        "redemptionInstructions": "redemption_instructions",
+        "redemptionURL": "redemption_url",
+    }
 
-            if reward_campaign["game"]:
-                # TODO(TheLovinator): Add game to reward campaign  # noqa: TD003
-                # TODO(TheLovinator): Send JSON to Discord # noqa: TD003
-                logger.error("Not implemented: Add game to reward campaign, JSON: %s", reward_campaign["game"])
+    defaults: dict = {new_key: reward[key] for key, new_key in mappings.items() if reward.get(key)}
+    if reward_campaign:
+        defaults["campaign"] = reward_campaign
 
-            # Add rewards
-            mappings: dict[str, str] = {
-                "name": "name",
-                "bannerImage": "banner_image_url",
-                "thumbnailImage": "thumbnail_image_url",
-                "earnableUntil": "earnable_until",
-                "redemptionInstructions": "redemption_instructions",
-                "redemptionURL": "redemption_url",
-            }
-            for reward in reward_campaign["rewards"]:
-                defaults = {new_key: reward[key] for key, new_key in mappings.items() if reward.get(key)}
-                if our_reward_campaign:
-                    defaults["campaign"] = our_reward_campaign
-                    our_reward, created = await Reward.objects.aupdate_or_create(
-                        id=reward["id"],
-                        defaults=defaults,
-                    )
+        if reward.get("bannerImage"):
+            defaults["banner_image_url"] = reward["bannerImage"]["image1xURL"]
 
-                if created:
-                    logger.info("Added reward %s", our_reward.id)
-                else:
-                    logger.info("Updated reward %s", our_reward.id)
+        if reward.get("thumbnailImage"):
+            defaults["thumbnail_image_url"] = reward["thumbnailImage"]["image1xURL"]
+
+        reward_instance, created = await Reward.objects.aupdate_or_create(id=reward["id"], defaults=defaults)
+    if created:
+        logger.info("Added reward %s", reward_instance.id)
+
+
+async def handle_reward_campaign(reward_campaign: dict) -> RewardCampaign:
+    """Add or update a reward campaign in the database.
+
+    Args:
+        reward_campaign (dict): The reward campaign JSON from Twitch.
+
+    Returns:
+        RewardCampaign: The reward campaign that was added or updated.
+    """
+    mappings: dict[str, str] = {
+        "brand": "brand",
+        "createdAt": "created_at",
+        "startsAt": "starts_at",
+        "endsAt": "ends_at",
+        "status": "status",
+        "summary": "summary",
+        "instructions": "instructions",
+        "rewardValueURLParam": "reward_value_url_param",
+        "externalURL": "external_url",
+        "aboutURL": "about_url",
+        "isSitewide": "is_site_wide",
+    }
+
+    defaults: dict = {new_key: reward_campaign[key] for key, new_key in mappings.items() if reward_campaign.get(key)}
+    unlock_requirements: dict = reward_campaign.get("unlockRequirements", {})
+    if unlock_requirements.get("subsGoal"):
+        defaults["sub_goal"] = unlock_requirements["subsGoal"]
+    if unlock_requirements.get("minuteWatchedGoal"):
+        defaults["minute_watched_goal"] = unlock_requirements["minuteWatchedGoal"]
+
+    if reward_campaign.get("image"):
+        defaults["image_url"] = reward_campaign["image"]["image1xURL"]
+
+    reward_campaign_instance, created = await RewardCampaign.objects.aupdate_or_create(
+        id=reward_campaign["id"],
+        defaults=defaults,
+    )
+    if created:
+        logger.info("Added reward campaign %s", reward_campaign_instance.id)
+
+    if reward_campaign["game"]:
+        # TODO(TheLovinator): Add game to reward campaign  # noqa: TD003
+        # TODO(TheLovinator): Send JSON to Discord # noqa: TD003
+        logger.error("Not implemented: Add game to reward campaign, JSON: %s", reward_campaign["game"])
+    return reward_campaign_instance
 
 
 async def add_or_update_game(game_json: dict | None) -> Game | None:
@@ -347,7 +368,7 @@ async def process_json_data(num: int, campaign: dict | None) -> None:
         return
 
     if not isinstance(campaign, dict):
-        logger.warning("Campaign is not a dictionary")
+        logger.warning("Campaign is not a dictionary. %s", campaign)
         return
 
     # This is a Reward Campaign
@@ -356,12 +377,7 @@ async def process_json_data(num: int, campaign: dict | None) -> None:
         await add_reward_campaign(campaign)
 
     if "dropCampaign" in campaign.get("data", {}).get("user", {}):
-        if not campaign["data"]["user"]["dropCampaign"]:
-            logger.warning("No drop campaign found")
-            return
-
         save_json(campaign, "drop_campaign")
-
         if campaign.get("data", {}).get("user", {}).get("dropCampaign"):
             await add_drop_campaign(campaign["data"]["user"]["dropCampaign"])
 
