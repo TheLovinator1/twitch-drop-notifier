@@ -1,29 +1,30 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static campaign_tags game_tags %}
 {% block content %}
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-lg-3">{{ toc|safe }}</div>
-            <div class="col-lg-9">
-                {% include "partials/info_box.html" %}
-                {% include "partials/news.html" %}
-                <h2>
-                    Reward campaigns -
-                    <div class="d-inline text-muted">{{ reward_campaigns.count }} campaigns</div>
-                </h2>
-                {% for campaign in reward_campaigns %}
-                    {% include "partials/reward_campaign_card.html" %}
-                {% endfor %}
-                <h2>
-                    Drop campaigns -
-                    <div class="d-inline text-muted ">{{ games.count }} games</div>
-                </h2>
-                {% for game in games %}
-                    {% if game.drop_campaigns.count > 0 %}
-                        {% include "partials/game_card.html" %}
-                    {% endif %}
-                {% endfor %}
-            </div>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-3">{{ toc|safe }}</div>
+        <div class="col-lg-9">
+            {% include "partials/info_box.html" %}
+            {% include "partials/news.html" %}
+            <h2>
+                Reward campaign -
+                <div class="d-inline text-muted">
+                    {{ reward_campaigns.count }}
+                    campaign{{ reward_campaigns.count|pluralize }}
+                </div>
+            </h2>
+            {% for campaign in reward_campaigns %}
+            {% render_campaign campaign %}
+            {% endfor %}
+            <h2>
+                Drop campaigns -
+                <div class="d-inline text-muted ">{{ games.count }} game{{ games.count|pluralize }}</div>
+            </h2>
+            {% for game in games %}
+            {% render_game_card game %}
+            {% endfor %}
         </div>
     </div>
+</div>
 {% endblock content %}

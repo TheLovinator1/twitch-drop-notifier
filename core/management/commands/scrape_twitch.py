@@ -76,11 +76,9 @@ async def add_reward_campaign(campaign: dict | None) -> None:
     """
     if not campaign:
         return
-
-    logger.info("Adding reward campaign to database %s", campaign["id"])
     if "data" in campaign and "rewardCampaignsAvailableToUser" in campaign["data"]:
         for reward_campaign in campaign["data"]["rewardCampaignsAvailableToUser"]:
-            our_reward_campaign = await handle_reward_campaign(reward_campaign)
+            our_reward_campaign: RewardCampaign = await handle_reward_campaign(reward_campaign)
 
             if "rewards" in reward_campaign:
                 for reward in reward_campaign["rewards"]:
@@ -126,6 +124,7 @@ async def handle_reward_campaign(reward_campaign: dict) -> RewardCampaign:
         RewardCampaign: The reward campaign that was added or updated.
     """
     mappings: dict[str, str] = {
+        "name": "name",
         "brand": "brand",
         "createdAt": "created_at",
         "startsAt": "starts_at",
@@ -209,8 +208,7 @@ async def add_or_update_owner(owner_json: dict | None) -> Owner | None:
     if not owner_json:
         return None
 
-    defaults = {}
-
+    defaults: dict[str, str] = {}
     if owner_json.get("name"):
         defaults["name"] = owner_json["name"]
 
@@ -235,7 +233,7 @@ async def add_or_update_channels(channels_json: list[dict]) -> list[Channel] | N
 
     channels: list[Channel] = []
     for channel_json in channels_json:
-        defaults = {}
+        defaults: dict[str, str] = {}
         if channel_json.get("displayName"):
             defaults["display_name"] = channel_json["displayName"]
 
@@ -266,7 +264,7 @@ async def add_benefit(benefit: dict, time_based_drop: TimeBasedDrop) -> None:
         "isIosAvailable": "is_ios_available",
         "name": "name",
     }
-    defaults = {new_key: benefit[key] for key, new_key in mappings.items() if benefit.get(key)}
+    defaults: dict[str, str] = {new_key: benefit[key] for key, new_key in mappings.items() if benefit.get(key)}
     our_benefit, created = await Benefit.objects.aupdate_or_create(id=benefit["id"], defaults=defaults)
     if created:
         logger.info("Added benefit %s", our_benefit.id)
@@ -284,10 +282,11 @@ async def add_drop_campaign(drop_campaign: dict | None) -> None:
     if not drop_campaign:
         return
 
-    defaults = {}
+    defaults: dict[str, str | Game] = {}
     if drop_campaign.get("game"):
         game: Game | None = await add_or_update_game(drop_campaign["game"])
-        defaults["game"] = game
+        if game:
+            defaults["game"] = game
 
     mappings: dict[str, str] = {
         "accountLinkURL": "account_link_url",
@@ -327,19 +326,22 @@ async def add_time_based_drops(drop_campaign: dict, our_drop_campaign: DropCampa
         our_drop_campaign (DropCampaign): The drop campaign object in the database.
     """
     for time_based_drop in drop_campaign.get("timeBasedDrops", []):
+        time_based_drop: dict[str, typing.Any]
         if time_based_drop.get("preconditionDrops"):
             # TODO(TheLovinator): Add precondition drops to time-based drop  # noqa: TD003
             # TODO(TheLovinator): Send JSON to Discord  # noqa: TD003
             logger.error("Not implemented: Add precondition drops to time-based drop, JSON: %s", time_based_drop)
 
-        mappings = {
+        mappings: dict[str, str] = {
             "requiredSubs": "required_subs",
             "endAt": "ends_at",
             "name": "name",
             "requiredMinutesWatched": "required_minutes_watched",
             "startAt": "starts_at",
         }
-        defaults = {new_key: time_based_drop[key] for key, new_key in mappings.items() if time_based_drop.get(key)}
+        defaults: dict[str, str | DropCampaign] = {
+            new_key: time_based_drop[key] for key, new_key in mappings.items() if time_based_drop.get(key)
+        }
         if our_drop_campaign:
             defaults["drop_campaign"] = our_drop_campaign
 
@@ -373,18 +375,18 @@ async def process_json_data(num: int, campaign: dict | None) -> None:
 
     # This is a Reward Campaign
     if "rewardCampaignsAvailableToUser" in campaign.get("data", {}):
-        save_json(campaign, "reward_campaigns")
-        await add_reward_campaign(campaign)
+        save_json(campaign=campaign, dir_name="reward_campaigns")
+        await add_reward_campaign(campaign=campaign)
 
     if "dropCampaign" in campaign.get("data", {}).get("user", {}):
-        save_json(campaign, "drop_campaign")
+        save_json(campaign=campaign, dir_name="drop_campaign")
         if campaign.get("data", {}).get("user", {}).get("dropCampaign"):
-            await add_drop_campaign(campaign["data"]["user"]["dropCampaign"])
+            await add_drop_campaign(drop_campaign=campaign["data"]["user"]["dropCampaign"])
 
     if "dropCampaigns" in campaign.get("data", {}).get("currentUser", {}):
         for drop_campaign in campaign["data"]["currentUser"]["dropCampaigns"]:
-            save_json(campaign, "drop_campaigns")
-            await add_drop_campaign(drop_campaign)
+            save_json(campaign=campaign, dir_name="drop_campaigns")
+            await add_drop_campaign(drop_campaign=drop_campaign)
 
 
 class Command(BaseCommand):
@@ -423,7 +425,7 @@ class Command(BaseCommand):
         while not logged_in:
             try:
                 await page.wait_for_selector(
-                    'div[data-a-target="top-nav-avatar"]',
+                    selector='div[data-a-target="top-nav-avatar"]',
                     timeout=300000,
                 )
                 logged_in = True
@@ -449,7 +451,7 @@ class Command(BaseCommand):
 
     async def run_with_playwright(self) -> None:
         async with async_playwright() as playwright:
-            await self.run(playwright)
+            await self.run(playwright=playwright)
 
 
 if __name__ == "__main__":

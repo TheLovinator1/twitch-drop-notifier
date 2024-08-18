@@ -171,13 +171,13 @@ MESSAGE_TAGS: dict[int, str] = {
     messages.ERROR: "alert-danger",
 }
 
-CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24  # 1 day
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": DATA_DIR / "django_cache",
-    },
-}
+# CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24  # 1 day
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+#         "LOCATION": DATA_DIR / "django_cache",
+#     },
+# }
 SITE_ID = 1
 
 
