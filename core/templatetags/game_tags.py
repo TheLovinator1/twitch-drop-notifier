@@ -77,7 +77,7 @@ def render_campaigns(campaigns: list[DropCampaign]) -> SafeText:
                 campaign.account_link_url,
             )
 
-        time_until: str = timesince(campaign.ends_at, now()) if campaign.ends_at else ""
+        remaining_time: str = timesince(now(), campaign.ends_at) if campaign.ends_at else "Failed to calculate time"
         starts_at: str = campaign.starts_at.strftime("%A %d %B %H:%M") if campaign.starts_at else ""
         ends_at: str = campaign.ends_at.strftime("%A %d %B %H:%M") if campaign.ends_at else ""
         drops: list[TimeBasedDrop] = campaign.drops.all()  # type: ignore  # noqa: PGH003
@@ -94,7 +94,7 @@ def render_campaigns(campaigns: list[DropCampaign]) -> SafeText:
             link_html,
             starts_at,
             ends_at,
-            time_until,
+            remaining_time,
             render_drops(drops),
         )
 

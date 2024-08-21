@@ -74,10 +74,16 @@ def get_games_with_drops() -> BaseManager[Game]:
     # Prefetch Benefits for each TimeBasedDrop
     benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
 
+    # Filter active time-based drops
+    active_time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(ends_at__gte=timezone.now())
+
+    # Prefetch Benefits for each active TimeBasedDrop
+    benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
+
     # Prefetch TimeBasedDrops for each DropCampaign and include the prefetch of Benefits
     time_based_drops_prefetch = Prefetch(
         lookup="drops",
-        queryset=TimeBasedDrop.objects.prefetch_related(benefits_prefetch),
+        queryset=active_time_based_drops.prefetch_related(benefits_prefetch),
     )
 
     # Prefetch DropCampaigns for each Game and include the prefetch of TimeBasedDrops

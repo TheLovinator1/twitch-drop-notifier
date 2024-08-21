@@ -15,14 +15,14 @@
                 </div>
             </h2>
             {% for campaign in reward_campaigns %}
-            {% render_campaign campaign %}
+            {% render_campaign campaign %} {# Stored in /core/templatetags/campaign_tags.py #}
             {% endfor %}
             <h2>
                 Drop campaigns -
                 <div class="d-inline text-muted ">{{ games.count }} game{{ games.count|pluralize }}</div>
             </h2>
             {% for game in games %}
-            {% render_game_card game %}
+            {% render_game_card game %} {# Stored in /core/templatetags/game_tags.py #}
             {% endfor %}
         </div>
     </div>
