@@ -1,30 +1,27 @@
 {% extends "base.html" %}
-{% load static campaign_tags game_tags %}
+{% load static %}
+{% load campaign_tags %}
+{% load game_tags %}
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-lg-3">{{ toc|safe }}</div>
-        <div class="col-lg-9">
-            {% include "partials/info_box.html" %}
-            {% include "partials/news.html" %}
-            <h2>
-                Reward campaign -
-                <div class="d-inline text-muted">
-                    {{ reward_campaigns.count }}
-                    campaign{{ reward_campaigns.count|pluralize }}
-                </div>
-            </h2>
-            {% for campaign in reward_campaigns %}
-            {% render_campaign campaign %} {# Stored in /core/templatetags/campaign_tags.py #}
-            {% endfor %}
-            <h2>
-                Drop campaigns -
-                <div class="d-inline text-muted ">{{ games.count }} game{{ games.count|pluralize }}</div>
-            </h2>
-            {% for game in games %}
-            {% render_game_card game %} {# Stored in /core/templatetags/game_tags.py #}
-            {% endfor %}
-        </div>
-    </div>
+    {% include "partials/info_box.html" %}
+    {% include "partials/news.html" %}
+    <h2>
+        Reward campaign -
+        <span class="d-inline text-muted">
+            {{ reward_campaigns.count }}
+            campaign{{ reward_campaigns.count|pluralize }}
+        </span>
+    </h2>
+    {% for campaign in reward_campaigns %}
+    {% render_campaign campaign %}
+    {% endfor %}
+    <h2>
+        Drop campaigns -
+        <span class="d-inline text-muted ">{{ games.count }} game{{ games.count|pluralize }}</span>
+    </h2>
+    {% for game in games %}
+    {% render_game_card game %}
+    {% endfor %}
 </div>
 {% endblock content %}

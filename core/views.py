@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests_cache
 from django.db.models import Prefetch
@@ -21,38 +20,6 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-@dataclass
-class TOCItem:
-    """Table of contents item."""
-
-    name: str
-    toc_id: str
-
-
-def build_toc(list_of_things: list[TOCItem]) -> str:
-    """Build the table of contents.
-
-    Args:
-        list_of_things (list[TOCItem]): The list of table of contents items.
-
-    Returns:
-        str: The HTML for the table of contents.
-    """
-    html: str = """
-    <div class="position-sticky d-none d-lg-block toc">
-        <div class="card">
-            <div class="card-body">
-                <div id="toc-list" class="list-group">
-    """
-
-    for item in list_of_things:
-        html += (
-            f'<a class="list-group-item list-group-item-action plain-text-item" href="#{item.toc_id}">{item.name}</a>'
-        )
-    html += """</div></div></div></div>"""
-    return html
-
-
 def get_reward_campaigns() -> BaseManager[RewardCampaign]:
     """Get the reward campaigns.
 
@@ -68,32 +35,25 @@ def get_games_with_drops() -> BaseManager[Game]:
     Returns:
         BaseManager[Game]: The games with drops.
     """
-    # Filter active drop campaigns
-    active_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
-
-    # Prefetch Benefits for each TimeBasedDrop
-    benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
-
-    # Filter active time-based drops
+    active_campaigns_query: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
     active_time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(ends_at__gte=timezone.now())
 
-    # Prefetch Benefits for each active TimeBasedDrop
     benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
-
-    # Prefetch TimeBasedDrops for each DropCampaign and include the prefetch of Benefits
     time_based_drops_prefetch = Prefetch(
         lookup="drops",
         queryset=active_time_based_drops.prefetch_related(benefits_prefetch),
     )
-
-    # Prefetch DropCampaigns for each Game and include the prefetch of TimeBasedDrops
     campaigns_prefetch = Prefetch(
         lookup="drop_campaigns",
-        queryset=active_campaigns.prefetch_related(time_based_drops_prefetch),
+        queryset=active_campaigns_query.prefetch_related(time_based_drops_prefetch),
     )
 
-    # Query the games with the prefetched data
-    return Game.objects.filter(drop_campaigns__in=active_campaigns).prefetch_related(campaigns_prefetch).distinct()
+    return (
+        Game.objects.filter(drop_campaigns__in=active_campaigns_query)
+        .distinct()
+        .prefetch_related(campaigns_prefetch)
+        .order_by("name")
+    )
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -105,21 +65,19 @@ def index(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The response object
     """
-    reward_campaigns: BaseManager[RewardCampaign] = get_reward_campaigns()
-    games: BaseManager[Game] = get_games_with_drops()
-    tocs: list[TOCItem] = []
-    for game in games.all():
-        game_name: str = game.name or "<div class='text-muted'>Game name unknown</div>"
-        tocs.append(TOCItem(name=game_name, toc_id=f"#{game.twitch_id}"))
+    try:
+        reward_campaigns: BaseManager[RewardCampaign] = get_reward_campaigns()
+        games: BaseManager[Game] = get_games_with_drops()
 
-    toc: str = build_toc(tocs)
+    except Exception:
+        logger.exception("Error fetching reward campaigns or games.")
+        return HttpResponse(status=500)
 
-    context: dict[str, BaseManager[RewardCampaign] | str | BaseManager[Game]] = {
+    context: dict[str, Any] = {
         "reward_campaigns": reward_campaigns,
         "games": games,
-        "toc": toc,
     }
-    return TemplateResponse(request=request, template="index.html", context=context)
+    return TemplateResponse(request, "index.html", context)
 
 
 def game_view(request: HttpRequest) -> HttpResponse:

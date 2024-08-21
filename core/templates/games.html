@@ -1,34 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-lg-3">{{ toc|safe }}</div>
-            <div class="col-lg-9">
-                <div class="row">
-                    {% for game in games %}
-                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4">
-                            <div class="card h-100 shadow-sm">
-                                <img src="{{ game.image_url }}"
-                                     class="card-img-top"
-                                     alt="{{ game.display_name }}">
-                                <div class="card-body d-flex flex-column">
-                                    <h5 class="card-title">{{ game.display_name }}</h5>
-                                    <div class="mt-auto">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="new">
-                                            <label class="form-check-label" for="new">Notify when new</label>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="live">
-                                            <label class="form-check-label" for="live">Notify when farmable</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
+<div class="container mt-4">
+    {% for game in games %}
+    <div class="card mb-4 shadow-sm">
+        <div class="row g-0">
+            <div class="col-md-2">
+                <img src="{{ game.box_art_url }}" alt="{{ game.name }} box art" class="img-fluid rounded-start"
+                    height="283" width="212" loading="lazy">
+            </div>
+            <div class="col-md-10">
+                <div class="card-body">
+                    <h2 class="card-title h5">
+                        <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
+                            class="text-decoration-none">{{ game.name }}</a>
+                    </h2>
+                    <div>
+                        <a href="" class="text-decoration-none">See previous drops</a>
+                    </div>
+                    <div>
+                        <a href="" class="text-decoration-none">Subscribe to new drops</a>
+                    </div>
+                    <div>
+                        <a href="" class="text-decoration-none">Subscribe to active drops</a>
+
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
+    {% endfor %}
+</div>
 {% endblock content %}

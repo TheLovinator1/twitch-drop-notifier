@@ -19,14 +19,13 @@ def render_game_card(game: Game) -> SafeText:
     Returns:
         The rendered HTML string.
     """
-    twitch_id: str = game.twitch_id
     box_art_url: str = game.box_art_url or "https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg"
     name: str = game.name or "Game name unknown"
     slug: str = game.slug or "game-name-unknown"
     drop_campaigns: list[DropCampaign] = game.drop_campaigns.all()  # type: ignore  # noqa: PGH003
     return format_html(
         """
-    <div class="card mb-4 shadow-sm" id="#{}">
+    <div class="card mb-4 shadow-sm">
         <div class="row g-0">
             <div class="col-md-2">
                 <img src="{}" alt="{} box art" class="img-fluid rounded-start" height="283" width="212" loading="lazy">
@@ -45,7 +44,6 @@ def render_game_card(game: Game) -> SafeText:
         </div>
     </div>
     """,
-        twitch_id,
         box_art_url,
         name,
         slug,
