@@ -23,7 +23,7 @@ def render_game_card(game: Game) -> SafeText:
     box_art_url: str = game.box_art_url or "https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg"
     name: str = game.name or "Game name unknown"
     slug: str = game.slug or "game-name-unknown"
-    drop_campaigns = game.drop_campaigns.all()  # type: ignore  # noqa: PGH003
+    drop_campaigns: list[DropCampaign] = game.drop_campaigns.all()  # type: ignore  # noqa: PGH003
     return format_html(
         """
     <div class="card mb-4 shadow-sm" id="#{}">
@@ -115,7 +115,7 @@ def render_drops(drops: list[TimeBasedDrop]) -> SafeText:
         benefits: list[Benefit] = drop.benefits.all()  # type: ignore  # noqa: PGH003
         for benefit in benefits:
             image_url: str = benefit.image_url or "https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg"
-            name = benefit.name or "Drop name unknown"
+            name: str = benefit.name or "Drop name unknown"
             drop_html += format_html(
                 """
             <div class="col d-flex align-items-center position-relative">

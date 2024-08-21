@@ -12,7 +12,7 @@ from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.views import View
 
-from core.models import DropCampaign, Game, RewardCampaign, Webhook
+from core.models import Benefit, DropCampaign, Game, RewardCampaign, TimeBasedDrop, Webhook
 
 if TYPE_CHECKING:
     from django.db.models.manager import BaseManager
@@ -53,6 +53,43 @@ def build_toc(list_of_things: list[TOCItem]) -> str:
     return html
 
 
+def get_reward_campaigns() -> BaseManager[RewardCampaign]:
+    """Get the reward campaigns.
+
+    Returns:
+        BaseManager[RewardCampaign]: The reward campaigns.
+    """
+    return RewardCampaign.objects.all().prefetch_related("rewards").order_by("-created_at")
+
+
+def get_games_with_drops() -> BaseManager[Game]:
+    """Get the games with drops.
+
+    Returns:
+        BaseManager[Game]: The games with drops.
+    """
+    # Filter active drop campaigns
+    active_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
+
+    # Prefetch Benefits for each TimeBasedDrop
+    benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
+
+    # Prefetch TimeBasedDrops for each DropCampaign and include the prefetch of Benefits
+    time_based_drops_prefetch = Prefetch(
+        lookup="drops",
+        queryset=TimeBasedDrop.objects.prefetch_related(benefits_prefetch),
+    )
+
+    # Prefetch DropCampaigns for each Game and include the prefetch of TimeBasedDrops
+    campaigns_prefetch = Prefetch(
+        lookup="drop_campaigns",
+        queryset=active_campaigns.prefetch_related(time_based_drops_prefetch),
+    )
+
+    # Query the games with the prefetched data
+    return Game.objects.filter(drop_campaigns__in=active_campaigns).prefetch_related(campaigns_prefetch).distinct()
+
+
 def index(request: HttpRequest) -> HttpResponse:
     """Render the index page.
 
@@ -62,19 +99,8 @@ def index(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The response object
     """
-    reward_campaigns: BaseManager[RewardCampaign] = (
-        RewardCampaign.objects.all()
-        .prefetch_related("rewards")
-        .filter(ends_at__gt=timezone.now(), starts_at__lt=timezone.now())
-    )
-    future_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(
-        ends_at__gt=timezone.now(),
-        starts_at__lt=timezone.now(),
-    )
-
-    games: BaseManager[Game] = Game.objects.all().prefetch_related(
-        Prefetch("drop_campaigns", queryset=future_campaigns.prefetch_related("drops__benefits")),
-    )
+    reward_campaigns: BaseManager[RewardCampaign] = get_reward_campaigns()
+    games: BaseManager[Game] = get_games_with_drops()
     tocs: list[TOCItem] = []
     for game in games.all():
         game_name: str = game.name or "<div class='text-muted'>Game name unknown</div>"

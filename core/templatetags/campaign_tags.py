@@ -19,7 +19,7 @@ def render_campaign(campaign: RewardCampaign) -> SafeText:
     Returns:
         The rendered HTML string.
     """
-    time_remaining = timesince(now(), campaign.ends_at)
+    time_remaining: str = timesince(now(), campaign.ends_at)
     ends_in: str = f'{campaign.ends_at.strftime("%A %d %B %H:%M %Z")}' if campaign.ends_at else ""
     starts_in: str = f'{campaign.starts_at.strftime("%A %d %B %H:%M %Z")}' if campaign.starts_at else ""
 
