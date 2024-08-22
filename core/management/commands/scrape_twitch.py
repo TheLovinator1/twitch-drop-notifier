@@ -162,11 +162,12 @@ async def handle_reward_campaign(reward_campaign: dict) -> RewardCampaign:
     return reward_campaign_instance
 
 
-async def add_or_update_game(game_json: dict | None) -> Game | None:
+async def add_or_update_game(game_json: dict | None, owner: Owner | None) -> Game | None:
     """Add or update a game in the database.
 
     Args:
         game_json (dict): The game to add or update.
+        owner (Owner): The owner of the game.
 
     Returns:
         Game: The game that was added or updated.
@@ -179,19 +180,16 @@ async def add_or_update_game(game_json: dict | None) -> Game | None:
         "displayName": "name",
         "boxArtURL": "box_art_url",
     }
-    defaults = {new_key: game_json[key] for key, new_key in mappings.items() if game_json.get(key)}
-
+    defaults: dict = {new_key: game_json[key] for key, new_key in mappings.items() if game_json.get(key)}
     if game_json.get("slug"):
         defaults["game_url"] = f"https://www.twitch.tv/directory/game/{game_json["slug"]}"
-
-    if game_json.get("owner"):
-        owner: Owner | None = await add_or_update_owner(game_json["owner"])
-        if owner:
-            defaults["org"] = owner
 
     our_game, created = await Game.objects.aupdate_or_create(twitch_id=game_json["id"], defaults=defaults)
     if created:
         logger.info("Added game %s", our_game.twitch_id)
+
+    if owner:
+        await owner.games.aadd(our_game)  # type: ignore  # noqa: PGH003
 
     return our_game
 
@@ -282,9 +280,12 @@ async def add_drop_campaign(drop_campaign: dict | None) -> None:
     if not drop_campaign:
         return
 
-    defaults: dict[str, str | Game] = {}
+    defaults: dict[str, str | Game | Owner] = {}
+
+    owner: Owner | None = await get_owner(drop_campaign)
+
     if drop_campaign.get("game"):
-        game: Game | None = await add_or_update_game(drop_campaign["game"])
+        game: Game | None = await add_or_update_game(drop_campaign["game"], owner)
         if game:
             defaults["game"] = game
 
@@ -316,6 +317,21 @@ async def add_drop_campaign(drop_campaign: dict | None) -> None:
                 await channel.drop_campaigns.aadd(our_drop_campaign)
 
     await add_time_based_drops(drop_campaign, our_drop_campaign)
+
+
+async def get_owner(drop_campaign: dict) -> Owner | None:
+    """Get the owner of the drop campaign.
+
+    Args:
+        drop_campaign (dict): The drop campaign containing the owner.
+
+    Returns:
+        Owner: The owner of the drop campaign.
+    """
+    owner = None
+    if drop_campaign.get("owner"):
+        owner: Owner | None = await add_or_update_owner(drop_campaign["owner"])
+    return owner
 
 
 async def add_time_based_drops(drop_campaign: dict, our_drop_campaign: DropCampaign) -> None:

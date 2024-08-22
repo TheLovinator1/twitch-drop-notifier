@@ -33,7 +33,9 @@ def render_game_card(game: Game) -> SafeText:
             <div class="col-md-10">
                 <div class="card-body">
                     <h2 class="card-title h5">
-                        <a href="https://www.twitch.tv/directory/category/{}" class="text-decoration-none">{}</a>
+                    <span>
+                    <a href="/game/{}" class="text-decoration-none">{}</a> - <a href="https://www.twitch.tv/directory/category/{}" class="text-decoration-none text-muted">Twitch</a>
+                    </span>
                     </h2>
                     <div class="mt-auto">
                         <!-- Insert nice buttons -->
@@ -43,11 +45,12 @@ def render_game_card(game: Game) -> SafeText:
             </div>
         </div>
     </div>
-    """,
+    """,  # noqa: E501
         box_art_url,
         name,
-        slug,
+        game.twitch_id,
         name,
+        slug,
         render_campaigns(drop_campaigns),
     )
 

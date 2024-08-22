@@ -107,7 +107,7 @@ class TimeBasedDrop(models.Model):
 
 
 class Benefit(models.Model):
-    """This is the benefit we will see on the front end."""
+    """Benefits are the rewards for the drops."""
 
     id = models.TextField(primary_key=True)  # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
     created_at = models.DateTimeField(null=True, auto_created=True)  # "2024-08-11T00:00:00Z"

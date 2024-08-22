@@ -35,21 +35,24 @@ def get_games_with_drops() -> BaseManager[Game]:
     Returns:
         BaseManager[Game]: The games with drops.
     """
-    active_campaigns_query: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
-    active_time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(ends_at__gte=timezone.now())
+    # Prefetch the benefits for the active drops.
+    # Benefits have more information about the drop. Used for getting image_url.
+    benefits: BaseManager[Benefit] = Benefit.objects.all()
+    benefits_prefetch = Prefetch(lookup="benefits", queryset=benefits)
+    active_time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(
+        ends_at__gte=timezone.now(),
+    ).prefetch_related(benefits_prefetch)
 
-    benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
-    time_based_drops_prefetch = Prefetch(
-        lookup="drops",
-        queryset=active_time_based_drops.prefetch_related(benefits_prefetch),
-    )
+    # Prefetch the drops for the active campaigns.
+    active_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
+    drops_prefetch = Prefetch(lookup="drops", queryset=active_time_based_drops)
     campaigns_prefetch = Prefetch(
         lookup="drop_campaigns",
-        queryset=active_campaigns_query.prefetch_related(time_based_drops_prefetch),
+        queryset=active_campaigns.prefetch_related(drops_prefetch),
     )
 
     return (
-        Game.objects.filter(drop_campaigns__in=active_campaigns_query)
+        Game.objects.filter(drop_campaigns__in=active_campaigns)
         .distinct()
         .prefetch_related(campaigns_prefetch)
         .order_by("name")
@@ -80,7 +83,39 @@ def index(request: HttpRequest) -> HttpResponse:
     return TemplateResponse(request, "index.html", context)
 
 
-def game_view(request: HttpRequest) -> HttpResponse:
+def game_view(request: HttpRequest, twitch_id: int) -> HttpResponse:
+    """Render the game view page.
+
+    Args:
+        request (HttpRequest): The request object.
+        twitch_id (int): The Twitch ID of the game.
+
+    Returns:
+        HttpResponse: The response object.
+    """
+    try:
+        time_based_drops_prefetch = Prefetch(
+            lookup="drops",
+            queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
+        )
+        drop_campaigns_prefetch = Prefetch(
+            lookup="drop_campaigns",
+            queryset=DropCampaign.objects.prefetch_related(time_based_drops_prefetch),
+        )
+        game: Game = (
+            Game.objects.select_related("org").prefetch_related(drop_campaigns_prefetch).get(twitch_id=twitch_id)
+        )
+
+    except Game.DoesNotExist:
+        return HttpResponse(status=404)
+    except Game.MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    context: dict[str, Any] = {"game": game}
+    return TemplateResponse(request=request, template="game.html", context=context)
+
+
+def games_view(request: HttpRequest) -> HttpResponse:
     """Render the game view page.
 
     Args:
