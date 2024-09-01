@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -24,6 +24,15 @@ class Owner(models.Model):
     def __str__(self) -> str:
         return self.name or "Owner name unknown"
 
+    def import_json(self, data: dict | None) -> Self:
+        if not data:
+            return self
+
+        self.name = data.get("name", self.name)
+        self.save()
+
+        return self
+
 
 class Game(models.Model):
     """This is the game we will see on the front end."""
@@ -32,59 +41,97 @@ class Game(models.Model):
 
     # "https://www.twitch.tv/directory/category/halo-infinite"
     game_url = models.URLField(null=True, default="https://www.twitch.tv/")
-    name = models.TextField(null=True, default="Game name unknown")  # "Halo Infinite"
+
+    # "Halo Infinite"
+    name = models.TextField(null=True, default="Game name unknown")
 
     # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
     box_art_url = models.URLField(null=True, default="https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg")
-    slug = models.TextField(null=True)  # "halo-infinite"
+
+    # "halo-infinite"
+    slug = models.TextField(null=True)
 
     org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
 
     def __str__(self) -> str:
-        return self.name or "Game name unknown"
+        return self.name or self.twitch_id
+
+    async def import_json(self, data: dict | None, owner: Owner | None) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
+
+        self.name = data.get("name", self.name)
+        self.box_art_url = data.get("boxArtURL", self.box_art_url)
+        self.slug = data.get("slug", self.slug)
+
+        if data.get("slug"):
+            self.game_url = f"https://www.twitch.tv/directory/game/{data["slug"]}"
+
+        if owner:
+            await owner.games.aadd(self)  # type: ignore  # noqa: PGH003
+
+        self.save()
+
+        return self
 
 
 class DropCampaign(models.Model):
     """This is the drop campaign we will see on the front end."""
 
-    id = models.TextField(primary_key=True)  # "f257ce6e-502a-11ef-816e-0a58a9feac02"
-    created_at = models.DateTimeField(null=True, auto_created=True)  # "2024-08-11T00:00:00Z"
-    modified_at = models.DateTimeField(null=True, auto_now=True)  # "2024-08-12T00:00:00Z"
+    # "f257ce6e-502a-11ef-816e-0a58a9feac02"
+    id = models.TextField(primary_key=True)
+    created_at = models.DateTimeField(null=True, auto_created=True)
+    modified_at = models.DateTimeField(null=True, auto_now=True)
 
-    account_link_url = models.URLField(null=True)  # "https://www.halowaypoint.com/settings/linked-accounts"
+    # "https://www.halowaypoint.com/settings/linked-accounts"
+    account_link_url = models.URLField(null=True)
 
     # "Tune into this HCS Grassroots event to earn Halo Infinite in-game content!"
     description = models.TextField(null=True)
-    details_url = models.URLField(null=True)  # "https://www.halowaypoint.com"
 
-    ends_at = models.DateTimeField(null=True)  # "2024-08-12T05:59:59.999Z"
-    starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z""
+    # "https://www.halowaypoint.com"
+    details_url = models.URLField(null=True)
+
+    # "2024-08-12T05:59:59.999Z"
+    ends_at = models.DateTimeField(null=True)
+    # "2024-08-11T11:00:00Z""
+    starts_at = models.DateTimeField(null=True)
 
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
     image_url = models.URLField(null=True)
 
-    name = models.TextField(null=True)  # "HCS Open Series - Week 1 - DAY 2 - AUG11"
-    status = models.TextField(null=True)  # "ACTIVE"
+    # "HCS Open Series - Week 1 - DAY 2 - AUG11"
+    name = models.TextField(null=True, default="Unknown")
+
+    # "ACTIVE"
+    status = models.TextField(null=True)
 
     def __str__(self) -> str:
-        return self.name or "Drop campaign name unknown"
+        return self.name or self.id
 
+    async def import_json(self, data: dict | None, game: Game) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
 
-class Channel(models.Model):
-    """This is the channel we will see on the front end."""
+        self.name = data.get("name", self.name)
+        self.account_link_url = data.get("accountLinkURL", self.account_link_url)
+        self.description = data.get("description", self.description)
+        self.details_url = data.get("detailsURL", self.details_url)
+        self.ends_at = data.get("endAt", self.ends_at)
+        self.starts_at = data.get("startAt", self.starts_at)
+        self.status = data.get("status", self.status)
+        self.image_url = data.get("imageURL", self.image_url)
 
-    twitch_id = models.TextField(primary_key=True)  # "222719079"
-    display_name = models.TextField(null=True, default="Channel name unknown")  # "LVTHalo"
-    name = models.TextField(null=True)  # "lvthalo"
-    twitch_url = models.URLField(null=True, default="https://www.twitch.tv/")  # "https://www.twitch.tv/lvthalo"
-    live = models.BooleanField(default=False)  # "True"
+        if game:
+            self.game = game
 
-    drop_campaigns = models.ManyToManyField(DropCampaign, related_name="channels")
+        self.save()
 
-    def __str__(self) -> str:
-        return self.display_name or "Channel name unknown"
+        return self
 
 
 class TimeBasedDrop(models.Model):
@@ -104,6 +151,24 @@ class TimeBasedDrop(models.Model):
 
     def __str__(self) -> str:
         return self.name or "Drop name unknown"
+
+    async def import_json(self, data: dict | None, drop_campaign: DropCampaign) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
+
+        self.name = data.get("name", self.name)
+        self.required_subs = data.get("requiredSubs", self.required_subs)
+        self.required_minutes_watched = data.get("requiredMinutesWatched", self.required_minutes_watched)
+        self.starts_at = data.get("startAt", self.starts_at)
+        self.ends_at = data.get("endAt", self.ends_at)
+
+        if drop_campaign:
+            self.drop_campaign = drop_campaign
+
+        self.save()
+
+        return self
 
 
 class Benefit(models.Model):
@@ -133,6 +198,24 @@ class Benefit(models.Model):
 
     def __str__(self) -> str:
         return self.name or "Benefit name unknown"
+
+    async def import_json(self, data: dict | None, time_based_drop: TimeBasedDrop) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
+
+        self.name = data.get("name", self.name)
+        self.entitlement_limit = data.get("entitlementLimit", self.entitlement_limit)
+        self.is_ios_available = data.get("isIosAvailable", self.is_ios_available)
+        self.image_url = data.get("imageAssetURL", self.image_url)
+        self.twitch_created_at = data.get("createdAt", self.twitch_created_at)
+
+        if time_based_drop:
+            await time_based_drop.benefits.aadd(self)  # type: ignore  # noqa: PGH003
+
+        self.save()
+
+        return self
 
 
 class RewardCampaign(models.Model):
@@ -164,6 +247,41 @@ class RewardCampaign(models.Model):
     def __str__(self) -> str:
         return self.name or "Reward campaign name unknown"
 
+    async def import_json(self, data: dict | None) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
+
+        self.name = data.get("name", self.name)
+        self.brand = data.get("brand", self.brand)
+        self.starts_at = data.get("startsAt", self.starts_at)
+        self.ends_at = data.get("endsAt", self.ends_at)
+        self.status = data.get("status", self.status)
+        self.summary = data.get("summary", self.summary)
+        self.instructions = data.get("instructions", self.instructions)
+        self.reward_value_url_param = data.get("rewardValueURLParam", self.reward_value_url_param)
+        self.external_url = data.get("externalURL", self.external_url)
+        self.about_url = data.get("aboutURL", self.about_url)
+        self.is_site_wide = data.get("isSiteWide", self.is_site_wide)
+
+        unlock_requirements: dict = data.get("unlockRequirements", {})
+        if unlock_requirements:
+            self.sub_goal = unlock_requirements.get("subsGoal", self.sub_goal)
+            self.minute_watched_goal = unlock_requirements.get("minuteWatchedGoal", self.minute_watched_goal)
+
+        image = data.get("image", {})
+        if image:
+            self.image_url = image.get("image1xURL", self.image_url)
+
+        if data.get("game"):
+            game: Game | None = Game.objects.filter(twitch_id=data["game"]["id"]).first()
+            if game:
+                await game.reward_campaigns.aadd(self)  # type: ignore  # noqa: PGH003
+
+        self.save()
+
+        return self
+
 
 class Reward(models.Model):
     """This from the RewardCampaign."""
@@ -184,6 +302,31 @@ class Reward(models.Model):
 
     def __str__(self) -> str:
         return self.name or "Reward name unknown"
+
+    async def import_json(self, data: dict | None, reward_campaign: RewardCampaign) -> Self:
+        if not data:
+            logger.error("No data provided for %s.", self)
+            return self
+
+        self.name = data.get("name", self.name)
+        self.earnable_until = data.get("earnableUntil", self.earnable_until)
+        self.redemption_instructions = data.get("redemptionInstructions", self.redemption_instructions)
+        self.redemption_url = data.get("redemptionURL", self.redemption_url)
+
+        banner_image = data.get("bannerImage", {})
+        if banner_image:
+            self.banner_image_url = banner_image.get("image1xURL", self.banner_image_url)
+
+        thumbnail_image = data.get("thumbnailImage", {})
+        if thumbnail_image:
+            self.thumbnail_image_url = thumbnail_image.get("image1xURL", self.thumbnail_image_url)
+
+        if reward_campaign:
+            self.campaign = reward_campaign
+
+        self.save()
+
+        return self
 
 
 class Webhook(models.Model):

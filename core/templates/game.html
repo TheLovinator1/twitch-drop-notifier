@@ -63,8 +63,6 @@
                             <hr>
                             <div>
                                 <h3 class="mb-2">{{ drop.name }}</h3>
-
-                                {% if drop.benefits.all %}
                                 {% for benefit in drop.benefits.all %}
                                 <img src="{{ benefit.image_url }}" alt="{{ benefit.name }} image"
                                     class="img-fluid rounded mb-2">
@@ -79,9 +77,6 @@
                                 {% empty %}
                                 <div>No benefits available for this drop.</div>
                                 {% endfor %}
-                                {% else %}
-                                <p>No benefits available for this drop.</p>
-                                {% endif %}
                             </div>
                             {% empty %}
                             <div>No time-based drops available for this campaign.</div>
