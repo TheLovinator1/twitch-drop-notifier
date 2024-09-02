@@ -14,12 +14,23 @@
       "justMyCode": true
     },
     {
-      "name": "python manage.py scrape_twitch",
+      "name": "scrape_twitch",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/manage.py",
       "args": [
         "scrape_twitch"
+      ],
+      "django": true,
+      "justMyCode": true
+    },
+    {
+      "name": "scrape_local",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/manage.py",
+      "args": [
+        "scrape_local"
       ],
       "django": true,
       "justMyCode": true
