@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import requests_cache
-from django.db.models import Prefetch
+from django.db.models import F, Prefetch
 from django.db.models.manager import BaseManager
 from django.http import HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
@@ -30,32 +30,32 @@ def get_reward_campaigns() -> BaseManager[RewardCampaign]:
 
 
 def get_games_with_drops() -> BaseManager[Game]:
-    """Get the games with drops.
+    """Get the games with drops, sorted by when the drop campaigns end.
 
     Returns:
         BaseManager[Game]: The games with drops.
     """
-    # Prefetch the benefits for the active drops.
-    # Benefits have more information about the drop. Used for getting image_url.
-    benefits: BaseManager[Benefit] = Benefit.objects.all()
-    benefits_prefetch = Prefetch(lookup="benefits", queryset=benefits)
+    # Prefetch the benefits for the time-based drops.
+    benefits_prefetch = Prefetch(lookup="benefits", queryset=Benefit.objects.all())
     active_time_based_drops: BaseManager[TimeBasedDrop] = TimeBasedDrop.objects.filter(
         ends_at__gte=timezone.now(),
+        starts_at__lte=timezone.now(),
     ).prefetch_related(benefits_prefetch)
 
-    # Prefetch the drops for the active campaigns.
-    active_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(ends_at__gte=timezone.now())
+    # Prefetch the active time-based drops for the drop campaigns.
     drops_prefetch = Prefetch(lookup="drops", queryset=active_time_based_drops)
-    campaigns_prefetch = Prefetch(
-        lookup="drop_campaigns",
-        queryset=active_campaigns.prefetch_related(drops_prefetch),
-    )
+    active_campaigns: BaseManager[DropCampaign] = DropCampaign.objects.filter(
+        ends_at__gte=timezone.now(),
+        starts_at__lte=timezone.now(),
+    ).prefetch_related(drops_prefetch)
 
     return (
         Game.objects.filter(drop_campaigns__in=active_campaigns)
+        .annotate(drop_campaign_end=F("drop_campaigns__ends_at"))
         .distinct()
-        .prefetch_related(campaigns_prefetch)
-        .order_by("name")
+        .prefetch_related(Prefetch("drop_campaigns", queryset=active_campaigns))
+        .select_related("org")
+        .order_by("drop_campaign_end")
     )
 
 

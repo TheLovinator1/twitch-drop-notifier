@@ -1,98 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container my-5">
-    <div class="text-center">
-        <header class="h2 mt-4">
-            {{ game.name }}
-        </header>
-        <img src="{{ game.box_art_url }}" alt="{{ game.name }} box art" class="img-fluid rounded" height="283"
-            width="212" loading="lazy">
-    </div>
+<div class="container">
+    <h2>{{ game.name }}</h2>
+    <img src="{{ game.box_art_url }}" alt="{{ game.name }} box art" height="283" width="212">
 
-    <div class="mt-5">
-        <h3 class="h4">Game Details</h3>
-        <ul class="list-group">
-            <li class="list-group-item"><strong>Twitch ID:</strong> {{ game.twitch_id }}</li>
-            <li class="list-group-item"><strong>Game URL:</strong> <a href="{{ game.url }}"
-                    target="_blank">{{ game.url }}</a></li>
-            <li class="list-group-item"><strong>Game name:</strong> {{ game.name }}</li>
-            <li class="list-group-item"><strong>Game box art URL:</strong> <a href="{{ game.box_art_url }}"
-                    target="_blank">{{ game.box_art_url }}</a></li>
-        </ul>
-    </div>
+    <h3>Game Details</h3>
+    <table class="table table-hover table-sm table-striped" cellspacing="0">
+        <tr>
+            <td><strong>Twitch ID:</strong></td>
+            <td>{{ game.pk }}</td>
+        </tr>
+        <tr>
+            <td><strong>Game URL:</strong></td>
+            <td><a href="{{ game.game_url }}" target="_blank">{{ game.game_url }}</a></td>
+        </tr>
+        <tr>
+            <td><strong>Game name:</strong></td>
+            <td>{{ game.name }}</td>
+        </tr>
+        <tr>
+            <td><strong>Game box art URL:</strong></td>
+            <td><a href="{{ game.box_art_url }}" target="_blank">{{ game.box_art_url }}</a></td>
+        </tr>
+    </table>
 
-    <div class="mt-5">
-        <h3 class="h4">Organization</h3>
-        <ul class="list-group">
+    <h3>Organization</h3>
+    <table class="table table-hover table-sm table-striped" cellspacing="0">
+        <tr>
             {% if game.org %}
-            <li class="list-group-item">
-                <a href="#">{{ game.org.name }} - <span class="text-muted">{{ game.org.id }}</span></a>
-            </li>
+            <td><a href="#">{{ game.org.name }} - <span class="text-muted">{{ game.org.pk }}</span></a></td>
             {% else %}
-            <li class="list-group-item">No organization associated with this game.</li>
+            <td>No organization associated with this game.</td>
             {% endif %}
-        </ul>
-    </div>
+        </tr>
+    </table>
 
-    <div class="mt-5">
-        <h3 class="h4">Drop Campaigns</h3>
-        {% if game.drop_campaigns.all %}
-        <div>
-            {% for drop_campaign in game.drop_campaigns.all %}
-            <div>
-                <h2>
-                    {{ drop_campaign.name }}
-                </h2>
-                <div>
-                    <div>
-                        <img src="{{ drop_campaign.image_url }}" alt="{{ drop_campaign.name }} image"
-                            class="img-fluid mb-3 rounded">
-                        <p><strong>Status:</strong> {{ drop_campaign.status }}</p>
-                        <p>{{ drop_campaign.description }}</p>
-                        <p><strong>Starts at:</strong> {{ drop_campaign.starts_at }}</p>
-                        <p><strong>Ends at:</strong> {{ drop_campaign.ends_at }}</p>
-                        <p><strong>More details:</strong> <a href="{{ drop_campaign.details_url }}"
-                                target="_blank">{{ drop_campaign.details_url }}</a></p>
-                        <p><strong>Account Link:</strong> <a href="{{ drop_campaign.account_link_url }}"
-                                target="_blank">{{ drop_campaign.account_link_url }}</a></p>
+    <h3>Drop Campaigns</h3>
+    {% if game.drop_campaigns.all %}
+    {% for drop_campaign in game.drop_campaigns.all %}
+    <br>
+    <h2>{{ drop_campaign.name }}</h2>
+    <table class="table table-hover table-sm table-striped" cellspacing="0">
+        <tr>
+            <td><strong>Campaign Name:</strong></td>
+            <td>{{ drop_campaign.name }}</td>
+        </tr>
+        <tr>
+            <td><img src="{{ drop_campaign.image_url }}" alt="{{ drop_campaign.name }} image"></td>
+            <td>
+                <p><strong>Status:</strong> {{ drop_campaign.status }}</p>
+                <p><strong>Description:</strong> {{ drop_campaign.description }}</p>
+                <p><strong>Starts at:</strong> {{ drop_campaign.starts_at }}</p>
+                <p><strong>Ends at:</strong> {{ drop_campaign.ends_at }}</p>
+                <p><strong>More details:</strong> <a href="{{ drop_campaign.details_url }}"
+                        target="_blank">{{ drop_campaign.details_url }}</a></p>
+                <p><strong>Account Link:</strong> <a href="{{ drop_campaign.account_link_url }}"
+                        target="_blank">{{ drop_campaign.account_link_url }}</a></p>
+            </td>
+        </tr>
+    </table>
 
-                        <h2 class="mt-4">Time-Based Drops</h2>
-                        {% if drop_campaign.drops.all %}
-                        <div>
-                            {% for drop in drop_campaign.drops.all %}
-                            <hr>
-                            <div>
-                                <h3 class="mb-2">{{ drop.name }}</h3>
-                                {% for benefit in drop.benefits.all %}
-                                <img src="{{ benefit.image_url }}" alt="{{ benefit.name }} image"
-                                    class="img-fluid rounded mb-2">
-                                <p><strong>Required Subscriptions:</strong> {{ drop.required_subs }}</p>
-                                <p><strong>Required Minutes Watched:</strong> {{ drop.required_minutes_watched }}</p>
-                                <p><strong>Starts at:</strong> {{ drop.starts_at }}</p>
-                                <p><strong>Ends at:</strong> {{ drop.ends_at }}</p>
-
-                                <p><strong>Entitlement Limit:</strong> {{ benefit.entitlement_limit }}</p>
-                                <p><strong>Available on iOS:</strong> {{ benefit.is_ios_available }}</p>
-                                <p><strong>Twitch Created At:</strong> {{ benefit.twitch_created_at }}</p>
-                                {% empty %}
-                                <div>No benefits available for this drop.</div>
-                                {% endfor %}
-                            </div>
-                            {% empty %}
-                            <div>No time-based drops available for this campaign.</div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p>No time-based drops available for this campaign.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+    {% if drop_campaign.drops.all %}
+    <table class="table table-hover table-sm table-striped" cellspacing="0">
+        <tr>
+            <th>ID</th>
+            <th>Item Name</th>
+            <th>Minutes</th>
+            <th>Image</th>
+            <th>Benefit Name</th>
+        </tr>
+        {% for item in drop_campaign.drops.all %}
+        <tr>
+            <td>{{ item.pk }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.required_minutes_watched }}</td>
+            {% for benefit in item.benefits.all %}
+            <td><img src="{{ benefit.image_url }}" alt="{{ benefit.name }} reward image" height="50" width="50">
+            </td>
+            <td>{{ benefit.name }}</td>
             {% endfor %}
-        </div>
-        {% else %}
-        <p>No drop campaigns available for this game.</p>
-        {% endif %}
-    </div>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No items associated with this drop campaign.</p>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <p>No drop campaigns associated with this game.</p>
+    {% endif %}
+
 </div>
 {% endblock content %}

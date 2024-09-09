@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import ClassVar, Self
 
+from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -18,18 +20,28 @@ class Owner(models.Model):
     Drops will be grouped by the owner. Users can also subscribe to owners.
     """
 
-    id = models.TextField(primary_key=True)  # "ad299ac0-f1a5-417d-881d-952c9aed00e9"
-    name = models.TextField(null=True)  # "Microsoft"
+    # "ad299ac0-f1a5-417d-881d-952c9aed00e9"
+    twitch_id = models.TextField(primary_key=True)
+
+    # When the owner was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the owner was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
+
+    # "Microsoft"
+    name = models.TextField(null=True)
 
     def __str__(self) -> str:
-        return self.name or "Owner name unknown"
+        return self.name or self.twitch_id
 
-    def import_json(self, data: dict | None) -> Self:
+    async def aimport_json(self, data: dict | None) -> Self:
         if not data:
             return self
 
-        self.name = data.get("name", self.name)
-        self.save()
+        if data.get("name") and data["name"] != self.name:
+            self.name = data["name"]
+            await self.asave()
 
         return self
 
@@ -37,16 +49,23 @@ class Owner(models.Model):
 class Game(models.Model):
     """This is the game we will see on the front end."""
 
-    twitch_id = models.TextField(primary_key=True)  # "509658"
+    # "509658"
+    twitch_id = models.TextField(primary_key=True)
+
+    # When the game was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the game was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
 
     # "https://www.twitch.tv/directory/category/halo-infinite"
-    game_url = models.URLField(null=True, default="https://www.twitch.tv/")
+    game_url = models.URLField(null=True)
 
     # "Halo Infinite"
-    name = models.TextField(null=True, default="Game name unknown")
+    name = models.TextField(null=True)
 
     # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
-    box_art_url = models.URLField(null=True, default="https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg")
+    box_art_url = models.URLField(null=True)
 
     # "halo-infinite"
     slug = models.TextField(null=True)
@@ -56,22 +75,37 @@ class Game(models.Model):
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def import_json(self, data: dict | None, owner: Owner | None) -> Self:
+    async def aimport_json(self, data: dict | None, owner: Owner | None) -> Self:
+        # Only update if the data is different.
+        dirty = 0
+
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.box_art_url = data.get("boxArtURL", self.box_art_url)
-        self.slug = data.get("slug", self.slug)
+        if data["__typename"] != "Game":
+            logger.error("Not a game? %s", data)
+            return self
 
-        if data.get("slug"):
+        if data.get("displayName") and data["displayName"] != self.name:
+            self.name = data["displayName"]
+            dirty += 1
+
+        if data.get("boxArtURL") and data["boxArtURL"] != self.box_art_url:
+            self.box_art_url = data["boxArtURL"]
+            dirty += 1
+
+        if data.get("slug") and data["slug"] != self.slug:
+            self.slug = data["slug"]
             self.game_url = f"https://www.twitch.tv/directory/game/{data["slug"]}"
+            dirty += 1
 
         if owner:
             await owner.games.aadd(self)  # type: ignore  # noqa: PGH003
 
-        self.save()
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated game %s", self)
 
         return self
 
@@ -80,8 +114,12 @@ class DropCampaign(models.Model):
     """This is the drop campaign we will see on the front end."""
 
     # "f257ce6e-502a-11ef-816e-0a58a9feac02"
-    id = models.TextField(primary_key=True)
+    twitch_id = models.TextField(primary_key=True)
+
+    # When the drop campaign was first added to the database.
     created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the drop campaign was last modified.
     modified_at = models.DateTimeField(null=True, auto_now=True)
 
     # "https://www.halowaypoint.com/settings/linked-accounts"
@@ -95,41 +133,86 @@ class DropCampaign(models.Model):
 
     # "2024-08-12T05:59:59.999Z"
     ends_at = models.DateTimeField(null=True)
+
     # "2024-08-11T11:00:00Z""
     starts_at = models.DateTimeField(null=True)
-
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
     image_url = models.URLField(null=True)
 
     # "HCS Open Series - Week 1 - DAY 2 - AUG11"
-    name = models.TextField(null=True, default="Unknown")
+    name = models.TextField(null=True)
 
     # "ACTIVE"
     status = models.TextField(null=True)
 
-    def __str__(self) -> str:
-        return self.name or self.id
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
-    async def import_json(self, data: dict | None, game: Game) -> Self:
+    class Meta:
+        ordering: ClassVar[list[str]] = ["ends_at"]
+
+    def __str__(self) -> str:
+        return self.name or self.twitch_id
+
+    async def aimport_json(self, data: dict | None, game: Game | None) -> Self:
+        # Only update if the data is different.
+        dirty = 0
+
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.account_link_url = data.get("accountLinkURL", self.account_link_url)
-        self.description = data.get("description", self.description)
-        self.details_url = data.get("detailsURL", self.details_url)
-        self.ends_at = data.get("endAt", self.ends_at)
-        self.starts_at = data.get("startAt", self.starts_at)
-        self.status = data.get("status", self.status)
-        self.image_url = data.get("imageURL", self.image_url)
+        if data.get("__typename") and data["__typename"] != "DropCampaign":
+            logger.error("Not a drop campaign? %s", data)
+            return self
 
-        if game:
+        if data.get("name") and data["name"] != self.name:
+            self.name = data["name"]
+            dirty += 1
+
+        if data.get("accountLinkURL") and data["accountLinkURL"] != self.account_link_url:
+            self.account_link_url = data["accountLinkURL"]
+            dirty += 1
+
+        if data.get("description") and data["description"] != self.description:
+            self.description = data["description"]
+            dirty += 1
+
+        if data.get("detailsURL") and data["detailsURL"] != self.details_url:
+            self.details_url = data["detailsURL"]
+            dirty += 1
+
+        end_at_str = data.get("endAt")
+        if end_at_str:
+            end_at: datetime = datetime.fromisoformat(end_at_str.replace("Z", "+00:00"))
+            if end_at != self.ends_at:
+                self.ends_at = end_at
+                dirty += 1
+
+        start_at_str = data.get("startAt")
+        if start_at_str:
+            start_at: datetime = datetime.fromisoformat(start_at_str.replace("Z", "+00:00"))
+            if start_at != self.starts_at:
+                self.starts_at = start_at
+                dirty += 1
+
+        status = data.get("status")
+        if status and status != self.status and status == "ACTIVE" and self.status != "EXPIRED":
+            # If it is EXPIRED, we should not set it to ACTIVE again.
+            # TODO(TheLovinator): Set ACTIVE if ACTIVE on Twitch?  # noqa: TD003
+            self.status = status
+            dirty += 1
+
+        if data.get("imageURL") and data["imageURL"] != self.image_url:
+            self.image_url = data["imageURL"]
+            dirty += 1
+
+        if game and await sync_to_async(lambda: game != self.game)():
             self.game = game
 
-        self.save()
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated drop campaign %s", self)
 
         return self
 
@@ -137,36 +220,89 @@ class DropCampaign(models.Model):
 class TimeBasedDrop(models.Model):
     """This is the drop we will see on the front end."""
 
-    id = models.TextField(primary_key=True)  # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
-    created_at = models.DateTimeField(null=True, auto_created=True)  # "2024-08-11T00:00:00Z"
-    modified_at = models.DateTimeField(null=True, auto_now=True)  # "2024-08-12T00:00:00Z"
+    # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
+    twitch_id = models.TextField(primary_key=True)
 
-    required_subs = models.PositiveBigIntegerField(null=True)  # "1"
-    ends_at = models.DateTimeField(null=True)  # "2024-08-12T05:59:59.999Z"
-    name = models.TextField(null=True)  # "Cosmic Nexus Chimera"
-    required_minutes_watched = models.PositiveBigIntegerField(null=True)  # "120"
-    starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z"
+    # When the drop was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the drop was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
+
+    # "1"
+    required_subs = models.PositiveBigIntegerField(null=True)
+
+    # "2024-08-12T05:59:59.999Z"
+    ends_at = models.DateTimeField(null=True)
+
+    # "Cosmic Nexus Chimera"
+    name = models.TextField(null=True)
+
+    # "120"
+    required_minutes_watched = models.PositiveBigIntegerField(null=True)
+
+    # "2024-08-11T11:00:00Z"
+    starts_at = models.DateTimeField(null=True)
 
     drop_campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
 
-    def __str__(self) -> str:
-        return self.name or "Drop name unknown"
+    class Meta:
+        ordering: ClassVar[list[str]] = ["required_minutes_watched"]
 
-    async def import_json(self, data: dict | None, drop_campaign: DropCampaign) -> Self:
+    def __str__(self) -> str:
+        return self.name or self.twitch_id
+
+    async def aimport_json(self, data: dict | None, drop_campaign: DropCampaign | None) -> Self:
+        dirty = 0
+
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.required_subs = data.get("requiredSubs", self.required_subs)
-        self.required_minutes_watched = data.get("requiredMinutesWatched", self.required_minutes_watched)
-        self.starts_at = data.get("startAt", self.starts_at)
-        self.ends_at = data.get("endAt", self.ends_at)
+        if data.get("__typename") and data["__typename"] != "TimeBasedDrop":
+            logger.error("Not a time-based drop? %s", data)
+            return self
 
-        if drop_campaign:
+        if data.get("name") and data["name"] != self.name:
+            logger.debug("%s: Old name: %s, new name: %s", self, self.name, data["name"])
+            self.name = data["name"]
+            dirty += 1
+
+        if data.get("requiredSubs") and data["requiredSubs"] != self.required_subs:
+            logger.debug(
+                "%s: Old required subs: %s, new required subs: %s",
+                self,
+                self.required_subs,
+                data["requiredSubs"],
+            )
+            self.required_subs = data["requiredSubs"]
+            dirty += 1
+
+        if data.get("requiredMinutesWatched") and data["requiredMinutesWatched"] != self.required_minutes_watched:
+            self.required_minutes_watched = data["requiredMinutesWatched"]
+            dirty += 1
+
+        start_at_str = data.get("startAt")
+        if start_at_str:
+            start_at: datetime = datetime.fromisoformat(start_at_str.replace("Z", "+00:00"))
+            if start_at != self.starts_at:
+                self.starts_at = start_at
+                dirty += 1
+
+        end_at_str = data.get("endAt")
+        if end_at_str:
+            end_at: datetime = datetime.fromisoformat(end_at_str.replace("Z", "+00:00"))
+            if end_at != self.ends_at:
+                self.ends_at = end_at
+                dirty += 1
+
+        if drop_campaign and await sync_to_async(lambda: drop_campaign != self.drop_campaign)():
             self.drop_campaign = drop_campaign
+            dirty += 1
 
-        self.save()
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated time-based drop %s", self)
 
         return self
 
@@ -174,20 +310,30 @@ class TimeBasedDrop(models.Model):
 class Benefit(models.Model):
     """Benefits are the rewards for the drops."""
 
-    id = models.TextField(primary_key=True)  # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
-    created_at = models.DateTimeField(null=True, auto_created=True)  # "2024-08-11T00:00:00Z"
-    modified_at = models.DateTimeField(null=True, auto_now=True)  # "2024-08-12T00:00:00Z"
+    # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
+    twitch_id = models.TextField(primary_key=True)
+
+    # When the benefit was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the benefit was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
 
     #  Note: This is Twitch's created_at from the API.
-    twitch_created_at = models.DateTimeField(null=True)  # "2023-11-09T01:18:00.126Z"
+    # "2023-11-09T01:18:00.126Z"
+    twitch_created_at = models.DateTimeField(null=True)
 
-    entitlement_limit = models.PositiveBigIntegerField(null=True)  # "1"
+    # "1"
+    entitlement_limit = models.PositiveBigIntegerField(null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/e58ad175-73f6-4392-80b8-fb0223163733.png"
     image_url = models.URLField(null=True)
-    is_ios_available = models.BooleanField(null=True)  # "True"
 
-    name = models.TextField(null=True)  # "Cosmic Nexus Chimera"
+    # "True" or "False". None if unknown.
+    is_ios_available = models.BooleanField(null=True)
+
+    # "Cosmic Nexus Chimera"
+    name = models.TextField(null=True)
 
     time_based_drop = models.ForeignKey(
         TimeBasedDrop,
@@ -196,24 +342,53 @@ class Benefit(models.Model):
         null=True,
     )
 
-    def __str__(self) -> str:
-        return self.name or "Benefit name unknown"
+    class Meta:
+        ordering: ClassVar[list[str]] = ["-twitch_created_at"]
 
-    async def import_json(self, data: dict | None, time_based_drop: TimeBasedDrop) -> Self:
+    def __str__(self) -> str:
+        return self.name or self.twitch_id
+
+    async def aimport_json(self, data: dict | None, time_based_drop: TimeBasedDrop | None) -> Self:
+        dirty = 0
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.entitlement_limit = data.get("entitlementLimit", self.entitlement_limit)
-        self.is_ios_available = data.get("isIosAvailable", self.is_ios_available)
-        self.image_url = data.get("imageAssetURL", self.image_url)
-        self.twitch_created_at = data.get("createdAt", self.twitch_created_at)
+        if data.get("__typename") and data["__typename"] != "DropBenefit":
+            logger.error("Not a benefit? %s", data)
+            return self
 
-        if time_based_drop:
+        if data.get("name") and data["name"] != self.name:
+            self.name = data["name"]
+            dirty += 1
+
+        if data.get("imageAssetURL") and data["imageAssetURL"] != self.image_url:
+            self.image_url = data["imageAssetURL"]
+            dirty += 1
+
+        if data.get("entitlementLimit") and data["entitlementLimit"] != self.entitlement_limit:
+            self.entitlement_limit = data["entitlementLimit"]
+            dirty += 1
+
+        if data.get("isIOSAvailable") and data["isIOSAvailable"] != self.is_ios_available:
+            self.is_ios_available = data["isIOSAvailable"]
+            dirty += 1
+
+        twitch_created_at_str = data.get("createdAt")
+
+        if twitch_created_at_str:
+            twitch_created_at: datetime = datetime.fromisoformat(twitch_created_at_str.replace("Z", "+00:00"))
+            if twitch_created_at != self.twitch_created_at:
+                self.twitch_created_at = twitch_created_at
+                dirty += 1
+
+        if time_based_drop and await sync_to_async(lambda: time_based_drop != self.time_based_drop)():
             await time_based_drop.benefits.aadd(self)  # type: ignore  # noqa: PGH003
+            dirty += 1
 
-        self.save()
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated benefit %s", self)
 
         return self
 
@@ -221,64 +396,157 @@ class Benefit(models.Model):
 class RewardCampaign(models.Model):
     """Buy subscriptions to earn rewards."""
 
-    id = models.TextField(primary_key=True)  # "dc4ff0b4-4de0-11ef-9ec3-621fb0811846"
-    created_at = models.DateTimeField(null=True, auto_created=True)  # "2024-08-11T00:00:00Z"
-    modified_at = models.DateTimeField(null=True, auto_now=True)  # "2024-08-12T00:00:00Z"
+    # "dc4ff0b4-4de0-11ef-9ec3-621fb0811846"
+    twitch_id = models.TextField(primary_key=True)
 
-    name = models.TextField(null=True)  # "Buy 1 new sub, get 3 months of Apple TV+"
-    brand = models.TextField(null=True)  # "Apple TV+"
-    starts_at = models.DateTimeField(null=True)  # "2024-08-11T11:00:00Z"
-    ends_at = models.DateTimeField(null=True)  # "2024-08-12T05:59:59.999Z"
-    status = models.TextField(null=True)  # "UNKNOWN"
-    summary = models.TextField(null=True)  # "Get 3 months of Apple TV+ with the purchase of a new sub"
-    instructions = models.TextField(null=True)  # "Buy a new sub to get 3 months of Apple TV+"
-    reward_value_url_param = models.TextField(null=True)  # ""
-    external_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
-    about_url = models.URLField(null=True)  # "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/"
-    is_site_wide = models.BooleanField(null=True)  # "True"
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
+    # When the reward campaign was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
 
-    sub_goal = models.PositiveBigIntegerField(null=True)  # "1"
-    minute_watched_goal = models.PositiveBigIntegerField(null=True)  # "0"
+    # When the reward campaign was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
+
+    # "Buy 1 new sub, get 3 months of Apple TV+"
+    name = models.TextField(null=True)
+
+    # "Apple TV+"
+    brand = models.TextField(null=True)
+
+    # "2024-08-11T11:00:00Z"
+    starts_at = models.DateTimeField(null=True)
+
+    # "2024-08-12T05:59:59.999Z"
+    ends_at = models.DateTimeField(null=True)
+
+    # "UNKNOWN"
+    status = models.TextField(null=True)
+
+    # "Get 3 months of Apple TV+ with the purchase of a new sub"
+    summary = models.TextField(null=True)
+
+    # "Buy a new sub to get 3 months of Apple TV+"
+    instructions = models.TextField(null=True)
+
+    # ""
+    reward_value_url_param = models.TextField(null=True)
+
+    # "https://tv.apple.com/includes/commerce/redeem/code-entry"
+    external_url = models.URLField(null=True)
+
+    # "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/"
+    about_url = models.URLField(null=True)
+
+    # "True" or "False". None if unknown.
+    is_site_wide = models.BooleanField(null=True)
+
+    # "1"
+    subs_goal = models.PositiveBigIntegerField(null=True)
+
+    # "0"
+    minute_watched_goal = models.PositiveBigIntegerField(null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png"
     image_url = models.URLField(null=True)
 
-    def __str__(self) -> str:
-        return self.name or "Reward campaign name unknown"
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
 
-    async def import_json(self, data: dict | None) -> Self:
+    class Meta:
+        ordering: ClassVar[list[str]] = ["-starts_at"]
+
+    def __str__(self) -> str:
+        return self.name or self.twitch_id
+
+    async def aimport_json(self, data: dict | None) -> Self:
+        dirty = 0
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.brand = data.get("brand", self.brand)
-        self.starts_at = data.get("startsAt", self.starts_at)
-        self.ends_at = data.get("endsAt", self.ends_at)
-        self.status = data.get("status", self.status)
-        self.summary = data.get("summary", self.summary)
-        self.instructions = data.get("instructions", self.instructions)
-        self.reward_value_url_param = data.get("rewardValueURLParam", self.reward_value_url_param)
-        self.external_url = data.get("externalURL", self.external_url)
-        self.about_url = data.get("aboutURL", self.about_url)
-        self.is_site_wide = data.get("isSiteWide", self.is_site_wide)
+        if data.get("__typename") and data["__typename"] != "RewardCampaign":
+            logger.error("Not a reward campaign? %s", data)
+            return self
 
-        unlock_requirements: dict = data.get("unlockRequirements", {})
-        if unlock_requirements:
-            self.sub_goal = unlock_requirements.get("subsGoal", self.sub_goal)
-            self.minute_watched_goal = unlock_requirements.get("minuteWatchedGoal", self.minute_watched_goal)
+        if data.get("name") and data["name"] != self.name:
+            self.name = data["name"]
+            dirty += 1
 
-        image = data.get("image", {})
-        if image:
-            self.image_url = image.get("image1xURL", self.image_url)
+        if data.get("brand") and data["brand"] != self.brand:
+            self.brand = data["brand"]
+            dirty += 1
 
-        if data.get("game"):
-            game: Game | None = Game.objects.filter(twitch_id=data["game"]["id"]).first()
-            if game:
+        starts_at_str = data.get("startsAt")
+        if starts_at_str:
+            starts_at: datetime = datetime.fromisoformat(starts_at_str.replace("Z", "+00:00"))
+            if starts_at != self.starts_at:
+                self.starts_at = starts_at
+                dirty += 1
+
+        ends_at_str = data.get("endsAt")
+        if ends_at_str:
+            ends_at: datetime = datetime.fromisoformat(ends_at_str.replace("Z", "+00:00"))
+            if ends_at != self.ends_at:
+                self.ends_at = ends_at
+                dirty += 1
+
+        if data.get("status") and data["status"] != self.status:
+            self.status = data["status"]
+            dirty += 1
+
+        if data.get("summary") and data["summary"] != self.summary:
+            self.summary = data["summary"]
+            dirty += 1
+
+        if data.get("instructions") and data["instructions"] != self.instructions:
+            self.instructions = data["instructions"]
+            dirty += 1
+
+        if data.get("rewardValueURLParam") and data["rewardValueURLParam"] != self.reward_value_url_param:
+            self.reward_value_url_param = data["rewardValueURLParam"]
+            logger.warning("What the duck this this? Reward value URL param: %s", self.reward_value_url_param)
+            dirty += 1
+
+        if data.get("externalURL") and data["externalURL"] != self.external_url:
+            self.external_url = data["externalURL"]
+            dirty += 1
+
+        if data.get("aboutURL") and data["aboutURL"] != self.about_url:
+            self.about_url = data["aboutURL"]
+            dirty += 1
+
+        if data.get("isSitewide") and data["isSitewide"] != self.is_site_wide:
+            self.is_site_wide = data["isSitewide"]
+            dirty += 1
+
+        subs_goal = data.get("unlockRequirements", {}).get("subsGoal")
+        if subs_goal and subs_goal != self.subs_goal:
+            self.subs_goal = subs_goal
+            dirty += 1
+
+        minutes_watched_goal = data.get("unlockRequirements", {}).get("minuteWatchedGoal")
+        if minutes_watched_goal and minutes_watched_goal != self.minute_watched_goal:
+            self.minute_watched_goal = minutes_watched_goal
+            dirty += 1
+
+        image_url = data.get("image", {}).get("image1xURL")
+        if image_url and image_url != self.image_url:
+            self.image_url = image_url
+            dirty += 1
+
+        if data.get("game") and data["game"].get("id"):
+            game, _ = await Game.objects.aget_or_create(twitch_id=data["game"]["id"])
+            if await sync_to_async(lambda: game != self.game)():
                 await game.reward_campaigns.aadd(self)  # type: ignore  # noqa: PGH003
+                dirty += 1
 
-        self.save()
+        if "rewards" in data:
+            for reward in data["rewards"]:
+                reward_instance, created = await Reward.objects.aupdate_or_create(twitch_id=reward["id"])
+                await reward_instance.aimport_json(reward, self)
+                if created:
+                    logger.info("Added reward %s", reward_instance)
+
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated reward campaign %s", self)
 
         return self
 
@@ -286,45 +554,89 @@ class RewardCampaign(models.Model):
 class Reward(models.Model):
     """This from the RewardCampaign."""
 
-    id = models.TextField(primary_key=True)  # "dc2e9810-4de0-11ef-9ec3-621fb0811846"
-    name = models.TextField(null=True)  # "3 months of Apple TV+"
+    # "dc2e9810-4de0-11ef-9ec3-621fb0811846"
+    twitch_id = models.TextField(primary_key=True)
+
+    # When the reward was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the reward was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
+
+    # "3 months of Apple TV+"
+    name = models.TextField(null=True)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
     banner_image_url = models.URLField(null=True)
+
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
     thumbnail_image_url = models.URLField(null=True)
 
-    earnable_until = models.DateTimeField(null=True)  # "2024-08-19T19:00:00Z"
-    redemption_instructions = models.TextField(null=True)  # ""
-    redemption_url = models.URLField(null=True)  # "https://tv.apple.com/includes/commerce/redeem/code-entry"
+    # "2024-08-19T19:00:00Z"
+    earnable_until = models.DateTimeField(null=True)
+
+    # ""
+    redemption_instructions = models.TextField(null=True)
+
+    # "https://tv.apple.com/includes/commerce/redeem/code-entry"
+    redemption_url = models.URLField(null=True)
 
     campaign = models.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
+
+    class Meta:
+        ordering: ClassVar[list[str]] = ["-earnable_until"]
 
     def __str__(self) -> str:
         return self.name or "Reward name unknown"
 
-    async def import_json(self, data: dict | None, reward_campaign: RewardCampaign) -> Self:
+    async def aimport_json(self, data: dict | None, reward_campaign: RewardCampaign | None) -> Self:
+        dirty = 0
         if not data:
             logger.error("No data provided for %s.", self)
             return self
 
-        self.name = data.get("name", self.name)
-        self.earnable_until = data.get("earnableUntil", self.earnable_until)
-        self.redemption_instructions = data.get("redemptionInstructions", self.redemption_instructions)
-        self.redemption_url = data.get("redemptionURL", self.redemption_url)
+        if data.get("__typename") and data["__typename"] != "Reward":
+            logger.error("Not a reward? %s", data)
+            return self
 
-        banner_image = data.get("bannerImage", {})
-        if banner_image:
-            self.banner_image_url = banner_image.get("image1xURL", self.banner_image_url)
+        if data.get("name") and data["name"] != self.name:
+            self.name = data["name"]
+            dirty += 1
 
-        thumbnail_image = data.get("thumbnailImage", {})
-        if thumbnail_image:
-            self.thumbnail_image_url = thumbnail_image.get("image1xURL", self.thumbnail_image_url)
+        earnable_until_str = data.get("earnableUntil")
+        if earnable_until_str:
+            earnable_until: datetime = datetime.fromisoformat(earnable_until_str.replace("Z", "+00:00"))
+            if earnable_until != self.earnable_until:
+                self.earnable_until = earnable_until
+                dirty += 1
 
-        if reward_campaign:
+        if data.get("redemptionInstructions") and data["redemptionInstructions"] != self.redemption_instructions:
+            # TODO(TheLovinator): We should archive this URL.  # noqa: TD003
+            self.redemption_instructions = data["redemptionInstructions"]
+            dirty += 1
+
+        if data.get("redemptionURL") and data["redemptionURL"] != self.redemption_url:
+            # TODO(TheLovinator): We should archive this URL.  # noqa: TD003
+            self.redemption_url = data["redemptionURL"]
+            dirty += 1
+
+        banner_image_url = data.get("bannerImage", {}).get("image1xURL")
+        if banner_image_url and banner_image_url != self.banner_image_url:
+            self.banner_image_url = banner_image_url
+            dirty += 1
+
+        thumbnail_image_url = data.get("thumbnailImage", {}).get("image1xURL")
+        if thumbnail_image_url and thumbnail_image_url != self.thumbnail_image_url:
+            self.thumbnail_image_url = thumbnail_image_url
+            dirty += 1
+
+        if reward_campaign and await sync_to_async(lambda: reward_campaign != self.campaign)():
             self.campaign = reward_campaign
+            dirty += 1
 
-        self.save()
+        if dirty > 0:
+            await self.asave()
+            logger.info("Updated reward %s", self)
 
         return self
 
@@ -332,14 +644,20 @@ class Reward(models.Model):
 class Webhook(models.Model):
     """Discord webhook."""
 
+    id = models.TextField(primary_key=True)
     avatar = models.TextField(null=True)
     channel_id = models.TextField(null=True)
     guild_id = models.TextField(null=True)
-    id = models.TextField(primary_key=True)
     name = models.TextField(null=True)
     type = models.TextField(null=True)
     token = models.TextField()
     url = models.TextField()
+
+    # When the webhook was first added to the database.
+    created_at = models.DateTimeField(null=True, auto_created=True)
+
+    # When the webhook was last modified.
+    modified_at = models.DateTimeField(null=True, auto_now=True)
 
     # Get notified when the site finds a new game.
     subscribed_new_games = models.ManyToManyField(Game, related_name="subscribed_new_games")

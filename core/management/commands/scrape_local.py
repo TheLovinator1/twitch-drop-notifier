@@ -20,19 +20,17 @@ class Command(BaseCommand):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        dirs: list[str] = ["drop_campaigns", "reward_campaigns", "drop_campaigns"]
-        for dir_name in dirs:
-            logger.info("Scraping %s", dir_name)
-            for num, file in enumerate(Path(dir_name).rglob("*.json")):
-                logger.info("Processing %s", file)
+        dir_name = Path("json")
+        for num, file in enumerate(Path(dir_name).rglob("*.json")):
+            logger.info("Processing %s", file)
 
-                with file.open(encoding="utf-8") as f:
-                    try:
-                        load_json = json.load(f)
-                    except json.JSONDecodeError:
-                        logger.exception("Failed to load JSON from %s", file)
-                        continue
-                    asyncio.run(main=process_json_data(num=num, campaign=load_json, local=True))
+            with file.open(encoding="utf-8") as f:
+                try:
+                    load_json = json.load(f)
+                except json.JSONDecodeError:
+                    logger.exception("Failed to load JSON from %s", file)
+                    continue
+                asyncio.run(main=process_json_data(num=num, campaign=load_json, local=True))
 
 
 if __name__ == "__main__":
