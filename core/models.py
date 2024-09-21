@@ -2,13 +2,169 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import ClassVar, Self
+from io import BytesIO
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, cast
 
+import requests
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AbstractUser
+from django.core.files import File
+from django.core.files.base import ContentFile
 from django.db import models
+from PIL import Image
+
+if TYPE_CHECKING:
+    from django.db.models.fields.files import ImageFieldFile
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# The image file format to save images as.
+image_file_format: Literal["webp"] = "webp"
+
+
+def wrong_typename(data: dict, expected: str) -> bool:
+    """Check if the data is the expected type.
+
+    # TODO(TheLovinator): Double check this.  # noqa: TD003
+    Type name examples:
+        - Game
+        - DropCampaign
+        - TimeBasedDrop
+        - DropBenefit
+        - RewardCampaign
+        - Reward
+
+    Args:
+        data (dict): The data to check.
+        expected (str): The expected type.
+
+    Returns:
+        bool: True if the data is not the expected type.
+    """
+    is_unexpected_type: bool = data.get("__typename", "") != expected
+    if is_unexpected_type:
+        logger.error("Not a %s? %s", expected, data)
+
+    return is_unexpected_type
+
+
+def update_field(instance: models.Model, django_field_name: str, new_value: str | datetime | None) -> int:
+    """Update a field on an instance if the new value is different from the current value.
+
+    Args:
+        instance (models.Model): The Django model instance.
+        django_field_name (str): The name of the field to update.
+        new_value (str | datetime | None): The new value to update the field with.
+
+    Returns:
+        int: If the field was updated, returns 1. Otherwise, returns 0.
+    """
+    # Get the current value of the field.
+    try:
+        current_value = getattr(instance, django_field_name)
+    except AttributeError:
+        logger.exception("Field %s does not exist on %s", django_field_name, instance)
+        return 0
+
+    # Only update the field if the new value is different from the current value.
+    if new_value and new_value != current_value:
+        setattr(instance, django_field_name, new_value)
+        return 1
+
+    # 0 fields updated.
+    return 0
+
+
+def get_value(data: dict, key: str) -> datetime | str | None:
+    """Get a value from a dictionary.
+
+    We have this function so we can handle values that we need to convert to a different type. For example, we might
+    need to convert a string to a datetime object.
+
+    Args:
+        data (dict): The dictionary to get the value from.
+        key (str): The key to get the value for.
+
+    Returns:
+        datetime | str | None: The value from the dictionary
+    """
+    data_key: Any | None = data.get(key)
+    if not data_key:
+        return None
+
+    # Dates are in the format "2024-08-12T05:59:59.999Z"
+    dates: list[str] = ["endAt", "endsAt,", "startAt", "startsAt", "createdAt", "earnableUntil"]
+    if key in dates:
+        return datetime.fromisoformat(data_key.replace("Z", "+00:00"))
+
+    return data_key
+
+
+async def update_fields(instance: models.Model, data: dict, field_mapping: dict[str, str]) -> int:
+    """Update multiple fields on an instance using a mapping from external field names to model field names.
+
+    Args:
+        instance (models.Model): The Django model instance.
+        data (dict): The new data to update the fields with.
+        field_mapping (dict[str, str]): A dictionary mapping external field names to model field names.
+
+    Returns:
+        int: The number of fields updated. Used for only saving the instance if there were changes.
+    """
+    dirty = 0
+    for json_field, django_field_name in field_mapping.items():
+        data_key: datetime | str | None = get_value(data, json_field)
+        dirty += update_field(instance=instance, django_field_name=django_field_name, new_value=data_key)
+
+    if dirty > 0:
+        await instance.asave()
+
+    return dirty
+
+
+def convert_image_to_webp(data: bytes | None) -> File | None:
+    """Convert an image to a webp format.
+
+    Args:
+        data (bytes | None): The image data to convert.
+
+    Returns:
+        ImageFile | None: The image converted to a webp format.
+    """
+    if not data:
+        return None
+
+    try:
+        with BytesIO(data) as input_buffer, Image.open(input_buffer) as image:
+            output_buffer = BytesIO()
+            image.save(output_buffer, format=image_file_format)
+            output_buffer.seek(0)
+            return File(file=Image.open(output_buffer))
+    except Exception:
+        logger.exception("Failed to convert image to webp.")
+        return File(file=Image.open(fp=ContentFile(data)).convert("RGB"))
+
+
+def fetch_image(image_url: str) -> bytes | None:
+    """Fetch an image from a URL and return the response.
+
+    Args:
+        image_url (str): The URL of the image to fetch.
+
+    Returns:
+        requests.Response | None: The response if the image was fetched, otherwise None.
+    """
+    response: requests.Response = requests.get(image_url, timeout=5, stream=True)
+    response.raise_for_status()
+
+    if response.ok:
+        if response.raw:
+            logging.debug("Fetched image from %s", image_url)
+            return response.raw.read()
+        logging.error("Response raw is None for %s", image_url)
+        return None
+    logging.error("Failed to retrieve content. Status code: %s", response.status_code)
+    return None
 
 
 class User(AbstractUser): ...
@@ -32,22 +188,45 @@ class Owner(models.Model):
     # "Microsoft"
     name = models.TextField(null=True)
 
+    class Meta:
+        ordering: ClassVar[list[str]] = ["name"]
+
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None) -> Self:
-        if not data:
+    async def aimport_json(self, data: dict) -> Self:
+        if wrong_typename(data, "Organization"):
             return self
 
-        if data.get("name") and data["name"] != self.name:
-            self.name = data["name"]
-            await self.asave()
+        field_mapping: dict[str, str] = {"name": "name"}
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
         return self
 
 
+def get_game_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the game image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a Game.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(Game, instance)
+
+    # Example: game/509658.png
+    image_path: str = f"game/{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
+
+
 class Game(models.Model):
-    """This is the game we will see on the front end."""
+    """The game the drop campaign is for. Note that some reward campaigns are not tied to a game."""
 
     # "509658"
     twitch_id = models.TextField(primary_key=True)
@@ -66,48 +245,82 @@ class Game(models.Model):
 
     # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
     box_art_url = models.URLField(null=True)
+    image = models.ImageField(null=True, upload_to=get_game_image_path)
 
     # "halo-infinite"
-    slug = models.TextField(null=True)
+    slug = models.TextField(null=True, unique=True)
 
     org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
+
+    class Meta:
+        ordering: ClassVar[list[str]] = ["name"]
 
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None, owner: Owner | None) -> Self:
-        # Only update if the data is different.
-        dirty = 0
+    def download_image(self) -> ImageFieldFile | None:
+        """Download the image for the game.
 
-        if not data:
-            logger.error("No data provided for %s.", self)
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # We don't want to re-download the image if it already exists.
+        # TODO(TheLovinator): Check if there is a different image available.  # noqa: TD003
+        if self.image:
+            return self.image
+
+        if not self.box_art_url:
+            return None
+
+        response: bytes | None = fetch_image(image_url=self.box_art_url)
+        image: File | None = convert_image_to_webp(response)
+        if image:
+            self.image.save(name=f"{self.twitch_id}.{image_file_format}", content=image, save=True)
+            logger.info("Downloaded image for %s to %s", self, self.image.url)
+
+        return None
+
+    async def aimport_json(self, data: dict, owner: Owner | None) -> Self:
+        if wrong_typename(data, "Game"):
             return self
 
-        if data["__typename"] != "Game":
-            logger.error("Not a game? %s", data)
-            return self
+        # Map the fields from the JSON data to the Django model fields.
+        field_mapping: dict[str, str] = {
+            "displayName": "name",
+            "boxArtURL": "box_art_url",  # TODO(TheLovinator): Should download the image.  # noqa: TD003
+            "slug": "slug",
+        }
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
 
-        if data.get("displayName") and data["displayName"] != self.name:
-            self.name = data["displayName"]
-            dirty += 1
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
-        if data.get("boxArtURL") and data["boxArtURL"] != self.box_art_url:
-            self.box_art_url = data["boxArtURL"]
-            dirty += 1
-
-        if data.get("slug") and data["slug"] != self.slug:
-            self.slug = data["slug"]
-            self.game_url = f"https://www.twitch.tv/directory/game/{data["slug"]}"
-            dirty += 1
-
+        # Handle the owner of the game.
         if owner:
             await owner.games.aadd(self)  # type: ignore  # noqa: PGH003
-
-        if dirty > 0:
             await self.asave()
-            logger.info("Updated game %s", self)
+            logger.info("Added game %s for %s", self, owner)
 
         return self
+
+
+def get_drop_campaign_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the drop campaign image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a DropCampaign.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(DropCampaign, instance)
+
+    # Example: drop_campaigns/509658/509658.png
+    image_path: str = f"drop_campaign/{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
 
 
 class DropCampaign(models.Model):
@@ -140,6 +353,8 @@ class DropCampaign(models.Model):
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
     image_url = models.URLField(null=True)
 
+    image = models.ImageField(null=True, upload_to=get_drop_campaign_image_path)
+
     # "HCS Open Series - Week 1 - DAY 2 - AUG11"
     name = models.TextField(null=True)
 
@@ -154,65 +369,76 @@ class DropCampaign(models.Model):
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None, game: Game | None) -> Self:
-        # Only update if the data is different.
-        dirty = 0
+    def download_image(self) -> ImageFieldFile | None:
+        """Download the image for the drop campaign.
 
-        if not data:
-            logger.error("No data provided for %s.", self)
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # We don't want to re-download the image if it already exists.
+        # TODO(TheLovinator): Check if there is a different image available.  # noqa: TD003
+        if self.image:
+            return self.image
+
+        if not self.image_url:
+            return None
+
+        response: bytes | None = fetch_image(image_url=self.image_url)
+        image: File | None = convert_image_to_webp(response)
+        if image:
+            self.image.save(name=f"{self.twitch_id}.{image_file_format}", content=image, save=True)
+            logger.info("Downloaded image for %s to %s", self, self.image.url)
+
+        return None
+
+    async def aimport_json(self, data: dict, game: Game | None, *, scraping_local_files: bool = False) -> Self:
+        """Import the data from the Twitch API.
+
+        Args:
+            data (dict | None): The data from the Twitch API.
+            game (Game | None): The game this drop campaign is for.
+            scraping_local_files (bool, optional): If this was scraped from local data. Defaults to True.
+
+        Returns:
+            Self: The updated drop campaign.
+        """
+        if wrong_typename(data, "DropCampaign"):
             return self
 
-        if data.get("__typename") and data["__typename"] != "DropCampaign":
-            logger.error("Not a drop campaign? %s", data)
-            return self
+        field_mapping: dict[str, str] = {
+            "name": "name",
+            "accountLinkURL": "account_link_url",  # TODO(TheLovinator): Should archive site.  # noqa: TD003
+            "description": "description",
+            "endAt": "ends_at",
+            "startAt": "starts_at",
+            "detailsURL": "details_url",  # TODO(TheLovinator): Should archive site.  # noqa: TD003
+            "imageURL": "image_url",  # TODO(TheLovinator): Should download the image.  # noqa: TD003
+        }
 
-        if data.get("name") and data["name"] != self.name:
-            self.name = data["name"]
-            dirty += 1
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
-        if data.get("accountLinkURL") and data["accountLinkURL"] != self.account_link_url:
-            self.account_link_url = data["accountLinkURL"]
-            dirty += 1
-
-        if data.get("description") and data["description"] != self.description:
-            self.description = data["description"]
-            dirty += 1
-
-        if data.get("detailsURL") and data["detailsURL"] != self.details_url:
-            self.details_url = data["detailsURL"]
-            dirty += 1
-
-        end_at_str = data.get("endAt")
-        if end_at_str:
-            end_at: datetime = datetime.fromisoformat(end_at_str.replace("Z", "+00:00"))
-            if end_at != self.ends_at:
-                self.ends_at = end_at
-                dirty += 1
-
-        start_at_str = data.get("startAt")
-        if start_at_str:
-            start_at: datetime = datetime.fromisoformat(start_at_str.replace("Z", "+00:00"))
-            if start_at != self.starts_at:
-                self.starts_at = start_at
-                dirty += 1
-
+        # Update the drop campaign's status if the new status is different.
+        # When scraping local files:
+        #    - Only update if the status changes from "ACTIVE" to "EXPIRED".
+        # When scraping from the Twitch API:
+        #    - Always update the status regardless of its value.
         status = data.get("status")
-        if status and status != self.status and status == "ACTIVE" and self.status != "EXPIRED":
-            # If it is EXPIRED, we should not set it to ACTIVE again.
-            # TODO(TheLovinator): Set ACTIVE if ACTIVE on Twitch?  # noqa: TD003
-            self.status = status
-            dirty += 1
+        if status and status != self.status:
+            # Check if scraping local files and status changes from ACTIVE to EXPIRED
+            should_update = scraping_local_files and status == "EXPIRED" and self.status == "ACTIVE"
 
-        if data.get("imageURL") and data["imageURL"] != self.image_url:
-            self.image_url = data["imageURL"]
-            dirty += 1
+            # Always update if not scraping local files
+            if not scraping_local_files or should_update:
+                self.status = status
+                await self.asave()
 
+        # Update the game if the game is different or not set.
         if game and await sync_to_async(lambda: game != self.game)():
             self.game = game
-
-        if dirty > 0:
+            logger.info("Updated game %s for %s", game, self)
             await self.asave()
-            logger.info("Updated drop campaign %s", self)
 
         return self
 
@@ -252,59 +478,47 @@ class TimeBasedDrop(models.Model):
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None, drop_campaign: DropCampaign | None) -> Self:
-        dirty = 0
-
-        if not data:
-            logger.error("No data provided for %s.", self)
+    async def aimport_json(self, data: dict, drop_campaign: DropCampaign | None) -> Self:
+        if wrong_typename(data, "TimeBasedDrop"):
             return self
 
-        if data.get("__typename") and data["__typename"] != "TimeBasedDrop":
-            logger.error("Not a time-based drop? %s", data)
-            return self
+        field_mapping: dict[str, str] = {
+            "name": "name",
+            "requiredSubs": "required_subs",
+            "requiredMinutesWatched": "required_minutes_watched",
+            "startAt": "starts_at",
+            "endAt": "ends_at",
+        }
 
-        if data.get("name") and data["name"] != self.name:
-            logger.debug("%s: Old name: %s, new name: %s", self, self.name, data["name"])
-            self.name = data["name"]
-            dirty += 1
-
-        if data.get("requiredSubs") and data["requiredSubs"] != self.required_subs:
-            logger.debug(
-                "%s: Old required subs: %s, new required subs: %s",
-                self,
-                self.required_subs,
-                data["requiredSubs"],
-            )
-            self.required_subs = data["requiredSubs"]
-            dirty += 1
-
-        if data.get("requiredMinutesWatched") and data["requiredMinutesWatched"] != self.required_minutes_watched:
-            self.required_minutes_watched = data["requiredMinutesWatched"]
-            dirty += 1
-
-        start_at_str = data.get("startAt")
-        if start_at_str:
-            start_at: datetime = datetime.fromisoformat(start_at_str.replace("Z", "+00:00"))
-            if start_at != self.starts_at:
-                self.starts_at = start_at
-                dirty += 1
-
-        end_at_str = data.get("endAt")
-        if end_at_str:
-            end_at: datetime = datetime.fromisoformat(end_at_str.replace("Z", "+00:00"))
-            if end_at != self.ends_at:
-                self.ends_at = end_at
-                dirty += 1
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
         if drop_campaign and await sync_to_async(lambda: drop_campaign != self.drop_campaign)():
             self.drop_campaign = drop_campaign
-            dirty += 1
-
-        if dirty > 0:
+            logger.info("Updated drop campaign %s for %s", drop_campaign, self)
             await self.asave()
-            logger.info("Updated time-based drop %s", self)
 
         return self
+
+
+def get_benefit_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the benefit image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a Benefit.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(Benefit, instance)
+
+    # Example: benefit_images/509658.png
+    image_path: str = f"benefit/{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
 
 
 class Benefit(models.Model):
@@ -328,6 +542,7 @@ class Benefit(models.Model):
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/e58ad175-73f6-4392-80b8-fb0223163733.png"
     image_url = models.URLField(null=True)
+    image = models.ImageField(null=True, upload_to=get_benefit_image_path)
 
     # "True" or "False". None if unknown.
     is_ios_available = models.BooleanField(null=True)
@@ -348,49 +563,69 @@ class Benefit(models.Model):
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None, time_based_drop: TimeBasedDrop | None) -> Self:
-        dirty = 0
-        if not data:
-            logger.error("No data provided for %s.", self)
+    def download_image(self) -> ImageFieldFile | None:
+        """Download the image for the benefit.
+
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # TODO(TheLovinator): Check if the image on Twitch is different.  # noqa: TD003
+        if self.image:
+            logger.debug("Image already exists for %s", self)
+            return self.image
+
+        if not self.image_url:
+            logger.error("No image URL for %s", self)
+            return None
+
+        response: bytes | None = fetch_image(image_url=self.image_url)
+        image: File | None = convert_image_to_webp(response)
+        if image:
+            self.image.save(name=f"{self.twitch_id}.{image_file_format}", content=image, save=True)
+            logger.info("Downloaded image for %s to %s", self, self.image.url)
+
+        return None
+
+    async def aimport_json(self, data: dict, time_based_drop: TimeBasedDrop | None) -> Self:
+        if wrong_typename(data, "DropBenefit"):
             return self
 
-        if data.get("__typename") and data["__typename"] != "DropBenefit":
-            logger.error("Not a benefit? %s", data)
-            return self
+        field_mapping: dict[str, str] = {
+            "name": "name",
+            "imageAssetURL": "image_url",  # TODO(TheLovinator): Should download the image.  # noqa: TD003
+            "entitlementLimit": "entitlement_limit",
+            "isIOSAvailable": "is_ios_available",
+            "createdAt": "twitch_created_at",
+        }
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
-        if data.get("name") and data["name"] != self.name:
-            self.name = data["name"]
-            dirty += 1
-
-        if data.get("imageAssetURL") and data["imageAssetURL"] != self.image_url:
-            self.image_url = data["imageAssetURL"]
-            dirty += 1
-
-        if data.get("entitlementLimit") and data["entitlementLimit"] != self.entitlement_limit:
-            self.entitlement_limit = data["entitlementLimit"]
-            dirty += 1
-
-        if data.get("isIOSAvailable") and data["isIOSAvailable"] != self.is_ios_available:
-            self.is_ios_available = data["isIOSAvailable"]
-            dirty += 1
-
-        twitch_created_at_str = data.get("createdAt")
-
-        if twitch_created_at_str:
-            twitch_created_at: datetime = datetime.fromisoformat(twitch_created_at_str.replace("Z", "+00:00"))
-            if twitch_created_at != self.twitch_created_at:
-                self.twitch_created_at = twitch_created_at
-                dirty += 1
-
-        if time_based_drop and await sync_to_async(lambda: time_based_drop != self.time_based_drop)():
+        if time_based_drop:
             await time_based_drop.benefits.aadd(self)  # type: ignore  # noqa: PGH003
-            dirty += 1
-
-        if dirty > 0:
-            await self.asave()
-            logger.info("Updated benefit %s", self)
+            await time_based_drop.asave()
+            logger.info("Added benefit %s for %s", self, time_based_drop)
 
         return self
+
+
+def get_reward_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the reward image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a Reward.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(Reward, instance)
+
+    # Example: reward/509658.png
+    image_path: str = f"reward/{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
 
 
 class RewardCampaign(models.Model):
@@ -446,6 +681,7 @@ class RewardCampaign(models.Model):
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png"
     image_url = models.URLField(null=True)
+    image = models.ImageField(null=True, upload_to=get_reward_image_path)
 
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
 
@@ -455,100 +691,121 @@ class RewardCampaign(models.Model):
     def __str__(self) -> str:
         return self.name or self.twitch_id
 
-    async def aimport_json(self, data: dict | None) -> Self:
-        dirty = 0
-        if not data:
-            logger.error("No data provided for %s.", self)
+    def download_image(self) -> ImageFieldFile | None:
+        """Download the image for the drop campaign.
+
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # We don't want to re-download the image if it already exists.
+        # TODO(TheLovinator): Check if there is a different image available.  # noqa: TD003
+        if self.image:
+            return self.image
+
+        if not self.image_url:
+            return None
+
+        response: bytes | None = fetch_image(image_url=self.image_url)
+        image: File | None = convert_image_to_webp(response)
+        if image:
+            file_name: str = f"{self.twitch_id}.{image_file_format}"
+            self.image.save(name=file_name, content=image, save=True)
+            logger.info("Downloaded image for %s to %s", self, self.image.url)
+            return self.image
+
+        return None
+
+    async def aimport_json(self, data: dict) -> Self:
+        if wrong_typename(data, "RewardCampaign"):
             return self
 
-        if data.get("__typename") and data["__typename"] != "RewardCampaign":
-            logger.error("Not a reward campaign? %s", data)
-            return self
+        field_mapping: dict[str, str] = {
+            "name": "name",
+            "brand": "brand",
+            "startsAt": "starts_at",
+            "endsAt": "ends_at",
+            "status": "status",
+            "summary": "summary",
+            "instructions": "instructions",
+            "rewardValueURLParam": "reward_value_url_param",  # wtf is this?
+            "externalURL": "external_url",
+            "aboutURL": "about_url",
+            "isSitewide": "is_site_wide",
+        }
 
-        if data.get("name") and data["name"] != self.name:
-            self.name = data["name"]
-            dirty += 1
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
-        if data.get("brand") and data["brand"] != self.brand:
-            self.brand = data["brand"]
-            dirty += 1
+        if data.get("unlockRequirements", {}):
+            subs_goal = data["unlockRequirements"].get("subsGoal")
+            if subs_goal and subs_goal != self.subs_goal:
+                self.subs_goal = subs_goal
+                await self.asave()
 
-        starts_at_str = data.get("startsAt")
-        if starts_at_str:
-            starts_at: datetime = datetime.fromisoformat(starts_at_str.replace("Z", "+00:00"))
-            if starts_at != self.starts_at:
-                self.starts_at = starts_at
-                dirty += 1
-
-        ends_at_str = data.get("endsAt")
-        if ends_at_str:
-            ends_at: datetime = datetime.fromisoformat(ends_at_str.replace("Z", "+00:00"))
-            if ends_at != self.ends_at:
-                self.ends_at = ends_at
-                dirty += 1
-
-        if data.get("status") and data["status"] != self.status:
-            self.status = data["status"]
-            dirty += 1
-
-        if data.get("summary") and data["summary"] != self.summary:
-            self.summary = data["summary"]
-            dirty += 1
-
-        if data.get("instructions") and data["instructions"] != self.instructions:
-            self.instructions = data["instructions"]
-            dirty += 1
-
-        if data.get("rewardValueURLParam") and data["rewardValueURLParam"] != self.reward_value_url_param:
-            self.reward_value_url_param = data["rewardValueURLParam"]
-            logger.warning("What the duck this this? Reward value URL param: %s", self.reward_value_url_param)
-            dirty += 1
-
-        if data.get("externalURL") and data["externalURL"] != self.external_url:
-            self.external_url = data["externalURL"]
-            dirty += 1
-
-        if data.get("aboutURL") and data["aboutURL"] != self.about_url:
-            self.about_url = data["aboutURL"]
-            dirty += 1
-
-        if data.get("isSitewide") and data["isSitewide"] != self.is_site_wide:
-            self.is_site_wide = data["isSitewide"]
-            dirty += 1
-
-        subs_goal = data.get("unlockRequirements", {}).get("subsGoal")
-        if subs_goal and subs_goal != self.subs_goal:
-            self.subs_goal = subs_goal
-            dirty += 1
-
-        minutes_watched_goal = data.get("unlockRequirements", {}).get("minuteWatchedGoal")
-        if minutes_watched_goal and minutes_watched_goal != self.minute_watched_goal:
-            self.minute_watched_goal = minutes_watched_goal
-            dirty += 1
+            minutes_watched_goal = data["unlockRequirements"].get("minuteWatchedGoal")
+            if minutes_watched_goal and minutes_watched_goal != self.minute_watched_goal:
+                self.minute_watched_goal = minutes_watched_goal
+                await self.asave()
 
         image_url = data.get("image", {}).get("image1xURL")
         if image_url and image_url != self.image_url:
+            # await sync_to_async(self.download_image)()
+            # TODO(TheLovinator): Download the image.  # noqa: TD003
             self.image_url = image_url
-            dirty += 1
+            await self.asave()
 
         if data.get("game") and data["game"].get("id"):
             game, _ = await Game.objects.aget_or_create(twitch_id=data["game"]["id"])
-            if await sync_to_async(lambda: game != self.game)():
-                await game.reward_campaigns.aadd(self)  # type: ignore  # noqa: PGH003
-                dirty += 1
+            await game.reward_campaigns.aadd(self)  # type: ignore  # noqa: PGH003
+            await self.asave()
 
         if "rewards" in data:
             for reward in data["rewards"]:
                 reward_instance, created = await Reward.objects.aupdate_or_create(twitch_id=reward["id"])
                 await reward_instance.aimport_json(reward, self)
                 if created:
-                    logger.info("Added reward %s", reward_instance)
-
-        if dirty > 0:
-            await self.asave()
-            logger.info("Updated reward campaign %s", self)
+                    logger.info("Added reward %s to %s", reward_instance, self)
 
         return self
+
+
+def get_reward_banner_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the reward banner image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a Reward.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(Reward, instance)
+
+    # Example: reward/banner_509658.png
+    image_path: str = f"reward/banner_{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
+
+
+def get_reward_thumbnail_image_path(instance: models.Model, filename: str) -> str:
+    """Get the path for the reward thumbnail image.
+
+    Args:
+        instance (models.Model): The instance of the model. Is a Reward.
+        filename (str): The filename of the image.
+
+    Returns:
+        str: The path to the image.
+    """
+    instance = cast(Reward, instance)
+
+    # Example: reward/thumb_509658.png
+    image_path: str = f"reward/thumb_{filename}"
+    logger.debug("Saved image to %s", image_path)
+
+    return image_path
 
 
 class Reward(models.Model):
@@ -568,9 +825,11 @@ class Reward(models.Model):
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
     banner_image_url = models.URLField(null=True)
+    banner_image = models.ImageField(null=True, upload_to=get_reward_banner_image_path)
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
     thumbnail_image_url = models.URLField(null=True)
+    thumbnail_image = models.ImageField(null=True, upload_to=get_reward_thumbnail_image_path)
 
     # "2024-08-19T19:00:00Z"
     earnable_until = models.DateTimeField(null=True)
@@ -589,54 +848,84 @@ class Reward(models.Model):
     def __str__(self) -> str:
         return self.name or "Reward name unknown"
 
-    async def aimport_json(self, data: dict | None, reward_campaign: RewardCampaign | None) -> Self:
-        dirty = 0
-        if not data:
-            logger.error("No data provided for %s.", self)
+    def download_banner_image(self) -> ImageFieldFile | None:
+        """Download the banner image for the reward.
+
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # We don't want to re-download the image if it already exists.
+        # TODO(TheLovinator): Check if there is a different image available.  # noqa: TD003
+        if self.banner_image:
+            return self.banner_image
+
+        if not self.banner_image_url:
+            return None
+
+        if not self.banner_image and self.banner_image_url:
+            response: bytes | None = fetch_image(image_url=self.banner_image_url)
+            image: File | None = convert_image_to_webp(response)
+            if image:
+                self.banner_image.save(name=f"{self.twitch_id}.{image_file_format}", content=image, save=True)
+                logger.info("Downloaded image for %s to %s", self, self.banner_image.url)
+
+        return None
+
+    def download_thumbnail_image(self) -> ImageFieldFile | None:
+        """Download the thumbnail image for the reward.
+
+        Returns:
+            ImageFieldFile | None: The image file or None if it doesn't exist.
+        """
+        # We don't want to re-download the image if it already exists.
+        # TODO(TheLovinator): Check if there is a different image available.  # noqa: TD003
+        if self.thumbnail_image:
+            return self.thumbnail_image
+
+        if not self.thumbnail_image_url:
+            return None
+
+        if not self.thumbnail_image and self.thumbnail_image_url:
+            response: bytes | None = fetch_image(image_url=self.thumbnail_image_url)
+            image: File | None = convert_image_to_webp(response)
+            if image:
+                self.thumbnail_image.save(name=f"{self.twitch_id}.{image_file_format}", content=image, save=True)
+                logger.info("Downloaded image for %s to %s", self, self.thumbnail_image.url)
+
+        return None
+
+    async def aimport_json(self, data: dict, reward_campaign: RewardCampaign | None) -> Self:
+        if wrong_typename(data, "Reward"):
             return self
 
-        if data.get("__typename") and data["__typename"] != "Reward":
-            logger.error("Not a reward? %s", data)
-            return self
+        field_mapping: dict[str, str] = {
+            "name": "name",
+            "earnableUntil": "earnable_until",
+            "redemptionInstructions": "redemption_instructions",
+            "redemptionURL": "redemption_url",
+        }
 
-        if data.get("name") and data["name"] != self.name:
-            self.name = data["name"]
-            dirty += 1
-
-        earnable_until_str = data.get("earnableUntil")
-        if earnable_until_str:
-            earnable_until: datetime = datetime.fromisoformat(earnable_until_str.replace("Z", "+00:00"))
-            if earnable_until != self.earnable_until:
-                self.earnable_until = earnable_until
-                dirty += 1
-
-        if data.get("redemptionInstructions") and data["redemptionInstructions"] != self.redemption_instructions:
-            # TODO(TheLovinator): We should archive this URL.  # noqa: TD003
-            self.redemption_instructions = data["redemptionInstructions"]
-            dirty += 1
-
-        if data.get("redemptionURL") and data["redemptionURL"] != self.redemption_url:
-            # TODO(TheLovinator): We should archive this URL.  # noqa: TD003
-            self.redemption_url = data["redemptionURL"]
-            dirty += 1
+        updated: int = await update_fields(instance=self, data=data, field_mapping=field_mapping)
+        if updated > 0:
+            logger.info("Updated %s fields for %s", updated, self)
 
         banner_image_url = data.get("bannerImage", {}).get("image1xURL")
-        if banner_image_url and banner_image_url != self.banner_image_url:
-            self.banner_image_url = banner_image_url
-            dirty += 1
+        if banner_image_url:
+            await sync_to_async(self.download_banner_image)()
+            if banner_image_url != self.banner_image_url:
+                self.banner_image_url = banner_image_url
+                await self.asave()
 
         thumbnail_image_url = data.get("thumbnailImage", {}).get("image1xURL")
-        if thumbnail_image_url and thumbnail_image_url != self.thumbnail_image_url:
-            self.thumbnail_image_url = thumbnail_image_url
-            dirty += 1
+        if thumbnail_image_url:
+            await sync_to_async(self.download_thumbnail_image)()
+            if thumbnail_image_url != self.thumbnail_image_url:
+                self.thumbnail_image_url = thumbnail_image_url
+                await self.asave()
 
         if reward_campaign and await sync_to_async(lambda: reward_campaign != self.campaign)():
             self.campaign = reward_campaign
-            dirty += 1
-
-        if dirty > 0:
             await self.asave()
-            logger.info("Updated reward %s", self)
 
         return self
 

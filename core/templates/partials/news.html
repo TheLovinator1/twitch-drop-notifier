@@ -1,48 +1,50 @@
 {% if webhooks %}
-    <div class="card mb-4 shadow-sm" id="info-box">
-        <div class="row g-0">
-            <div class="col-md-10">
-                <div class="card-body">
-                    <h2 class="card-title h2">Site news</h2>
-                    <div class="mt-auto">
-                        {% for webhook in webhooks %}
-                            <div class="mt-3">
-                                <img src="{{ webhook.avatar }}?size=32"
-                                     alt="{{ webhook.name }}"
-                                     class="rounded-circle"
-                                     height="32"
-                                     width="32">
-                                <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="new-drop-switch-daily">
-                                    <label class="form-check-label" for="new-drop-switch-daily">Daily notification of newly added games to TTVdrops</label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="new-drop-switch-weekly">
-                                    <label class="form-check-label" for="new-drop-switch-weekly">
-                                        Weekly notification of newly added games to TTVdrops
-                                    </label>
-                                </div>
-                                <br>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="new-org-switch-daily">
-                                    <label class="form-check-label" for="new-org-switch-daily">
-                                        Daily notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                    </label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="new-org-switch-weekly">
-                                    <label class="form-check-label" for="new-org-switch-weekly">
-                                        Weekly notification of newly added <abbr title="Organizations are the companies that own the games.">organizations</abbr> to TTVdrops
-                                    </label>
-                                </div>
-                            </div>
-                        {% endfor %}
+<div class="card mb-4 shadow-sm" id="info-box">
+    <div class="row g-0">
+        <div class="col-md-10">
+            <div class="card-body">
+                <h2 class="card-title h2">Site news</h2>
+                <div class="mt-auto">
+                    {% for webhook in webhooks %}
+                    <div class="mt-3">
+                        <img src="{{ webhook.avatar }}?size=32" alt="{{ webhook.name }}" class="rounded-circle"
+                            height="32" width="32">
+                        <a href="{{ webhook.url }}" target="_blank">{{ webhook.name }}</a>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="new-drop-switch-daily">
+                            <label class="form-check-label" for="new-drop-switch-daily">Daily notification of newly
+                                added games to TTVdrops</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="new-drop-switch-weekly">
+                            <label class="form-check-label" for="new-drop-switch-weekly">
+                                Weekly notification of newly added games to TTVdrops
+                            </label>
+                        </div>
+                        <br>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="new-org-switch-daily">
+                            <label class="form-check-label" for="new-org-switch-daily">
+                                Daily notification of newly added <abbr
+                                    title="Organizations are the companies that own the games.">organizations</abbr> to
+                                TTVdrops
+                            </label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="new-org-switch-weekly">
+                            <label class="form-check-label" for="new-org-switch-weekly">
+                                Weekly notification of newly added <abbr
+                                    title="Organizations are the companies that own the games.">organizations</abbr> to
+                                TTVdrops
+                            </label>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
+</div>
 {% else %}
-    <p class="text-muted">No webhooks added yet.</p>
+<p class="text-muted">No webhooks added yet.</p>
 {% endif %}

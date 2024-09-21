@@ -40,9 +40,15 @@ THOUSAND_SEPARATOR = " "
 ROOT_URLCONF = "core.urls"
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT: Path = DATA_DIR / "media"
+MEDIA_ROOT.mkdir(exist_ok=True)
+
 AUTH_USER_MODEL = "core.User"
 if DEBUG:
     INTERNAL_IPS: list[str] = ["127.0.0.1"]
@@ -135,6 +141,9 @@ DATABASES = {
 }
 
 STORAGES: dict[str, dict[str, str]] = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },

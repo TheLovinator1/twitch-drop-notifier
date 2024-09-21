@@ -73,11 +73,12 @@ async def add_reward_campaign(reward_campaign: dict | None) -> None:
         logger.info("Added reward campaign %s", our_reward_campaign)
 
 
-async def add_drop_campaign(drop_campaign: dict | None) -> None:
+async def add_drop_campaign(drop_campaign: dict | None, *, local: bool) -> None:
     """Add a drop campaign to the database.
 
     Args:
         drop_campaign (dict): The drop campaign to add.
+        local (bool): Only update status if we are scraping from the Twitch directly.
     """
     if not drop_campaign:
         return
@@ -101,7 +102,7 @@ async def add_drop_campaign(drop_campaign: dict | None) -> None:
         logger.info("Added game %s", game)
 
     our_drop_campaign, created = await DropCampaign.objects.aupdate_or_create(twitch_id=drop_campaign["id"])
-    await our_drop_campaign.aimport_json(drop_campaign, game)
+    await our_drop_campaign.aimport_json(drop_campaign, game, scraping_local_files=local)
     if created:
         logger.info("Added drop campaign %s", our_drop_campaign.twitch_id)
 
@@ -129,14 +130,14 @@ async def add_time_based_drops(drop_campaign: dict, our_drop_campaign: DropCampa
             raise NotImplementedError(msg)
 
         our_time_based_drop, created = await TimeBasedDrop.objects.aupdate_or_create(twitch_id=time_based_drop["id"])
-        await our_time_based_drop.aimport_json(time_based_drop, our_drop_campaign)
+        await our_time_based_drop.aimport_json(data=time_based_drop, drop_campaign=our_drop_campaign)
 
         if created:
             logger.info("Added time-based drop %s", our_time_based_drop.twitch_id)
 
         if our_time_based_drop and time_based_drop.get("benefitEdges"):
             for benefit_edge in time_based_drop["benefitEdges"]:
-                benefit, created = await Benefit.objects.aupdate_or_create(twitch_id=benefit_edge["benefit"])
+                benefit, created = await Benefit.objects.aupdate_or_create(twitch_id=benefit_edge["benefit"]["id"])
                 await benefit.aimport_json(benefit_edge["benefit"], our_time_based_drop)
                 if created:
                     logger.info("Added benefit %s", benefit.twitch_id)
@@ -194,7 +195,7 @@ async def process_json_data(num: int, campaign: dict | None, *, local: bool) -> 
             await add_reward_campaign(reward_campaign=reward_campaign)
 
     if campaign.get("data", {}).get("user", {}).get("dropCampaign"):
-        await add_drop_campaign(drop_campaign=campaign["data"]["user"]["dropCampaign"])
+        await add_drop_campaign(drop_campaign=campaign["data"]["user"]["dropCampaign"], local=local)
 
     if campaign.get("data", {}).get("currentUser", {}).get("dropCampaigns"):
         for drop_campaign in campaign["data"]["currentUser"]["dropCampaigns"]:
