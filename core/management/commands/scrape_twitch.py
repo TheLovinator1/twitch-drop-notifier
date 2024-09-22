@@ -255,7 +255,7 @@ class Command(BaseCommand):
         await browser.close()
 
         for num, campaign in enumerate(json_data, start=1):
-            await process_json_data(num=num, campaign=campaign, local=True)
+            await process_json_data(num=num, campaign=campaign, local=False)
 
         return json_data
 

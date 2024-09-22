@@ -20,7 +20,7 @@ class Command(BaseCommand):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        dir_name = Path("json")
+        dir_name = Path("json2")
         for num, file in enumerate(Path(dir_name).rglob("*.json")):
             logger.info("Processing %s", file)
 

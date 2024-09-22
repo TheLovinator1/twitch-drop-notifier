@@ -22,6 +22,26 @@ logger: logging.Logger = logging.getLogger(__name__)
 image_file_format: Literal["webp"] = "webp"
 
 
+async def update_scraped_json(model_instance: models.Model, new_json_data: dict) -> None:
+    """Update the JSON data for the drop campaign.
+
+    Args:
+        model_instance (models.Model): The Django model instance which must have a 'scraped_json' attribute.
+        new_json_data (dict): The new JSON data to be updated.
+    """
+    if await sync_to_async(hasattr)(model_instance, "scraped_json"):
+        if model_instance.scraped_json:  # type: ignore[attr-defined]
+            model_instance.scraped_json.json_data = new_json_data  # type: ignore[attr-defined]
+            await model_instance.scraped_json.asave()  # type: ignore[attr-defined]
+        else:
+            scraped_json_instance: ScrapedJson = await ScrapedJson.objects.acreate(json_data=new_json_data)
+            model_instance.scraped_json = scraped_json_instance  # type: ignore[attr-defined]
+            await model_instance.asave()
+    else:
+        logger.error("The model instance does not have a 'scraped_json' attribute.")
+        model_instance.save()
+
+
 def wrong_typename(data: dict, expected: str) -> bool:
     """Check if the data is the expected type.
 
@@ -170,6 +190,17 @@ def fetch_image(image_url: str) -> bytes | None:
 class User(AbstractUser): ...
 
 
+class ScrapedJson(models.Model):
+    json_data = models.JSONField(unique=True, help_text="The JSON data from the Twitch API.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering: ClassVar[list[str]] = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.pk}"
+
+
 class Owner(models.Model):
     """The company or person that owns the game.
 
@@ -296,7 +327,7 @@ class Game(models.Model):
             logger.info("Updated %s fields for %s", updated, self)
 
         # Handle the owner of the game.
-        if owner:
+        if owner and await sync_to_async(lambda: self not in owner.games.all())():  # type: ignore[attr-defined]
             await owner.games.aadd(self)  # type: ignore  # noqa: PGH003
             await self.asave()
             logger.info("Added game %s for %s", self, owner)
@@ -363,6 +394,13 @@ class DropCampaign(models.Model):
 
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
+    scraped_json = models.ForeignKey(
+        ScrapedJson,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="Reference to the JSON data from the Twitch API.",
+    )
+
     class Meta:
         ordering: ClassVar[list[str]] = ["ends_at"]
 
@@ -404,6 +442,9 @@ class DropCampaign(models.Model):
         """
         if wrong_typename(data, "DropCampaign"):
             return self
+
+        # Save the JSON data for debugging purposes.
+        await update_scraped_json(model_instance=self, new_json_data=data)
 
         field_mapping: dict[str, str] = {
             "name": "name",
@@ -601,7 +642,7 @@ class Benefit(models.Model):
         if updated > 0:
             logger.info("Updated %s fields for %s", updated, self)
 
-        if time_based_drop:
+        if time_based_drop and await sync_to_async(lambda: self not in time_based_drop.benefits.all())():  # type: ignore[attr-defined]
             await time_based_drop.benefits.aadd(self)  # type: ignore  # noqa: PGH003
             await time_based_drop.asave()
             logger.info("Added benefit %s for %s", self, time_based_drop)
@@ -685,6 +726,13 @@ class RewardCampaign(models.Model):
 
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
 
+    scraped_json = models.ForeignKey(
+        ScrapedJson,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="Reference to the JSON data from the Twitch API.",
+    )
+
     class Meta:
         ordering: ClassVar[list[str]] = ["-starts_at"]
 
@@ -718,6 +766,9 @@ class RewardCampaign(models.Model):
     async def aimport_json(self, data: dict) -> Self:
         if wrong_typename(data, "RewardCampaign"):
             return self
+
+        # Save the JSON data for debugging purposes.
+        await update_scraped_json(model_instance=self, new_json_data=data)
 
         field_mapping: dict[str, str] = {
             "name": "name",
@@ -910,18 +961,18 @@ class Reward(models.Model):
             logger.info("Updated %s fields for %s", updated, self)
 
         banner_image_url = data.get("bannerImage", {}).get("image1xURL")
-        if banner_image_url:
-            await sync_to_async(self.download_banner_image)()
-            if banner_image_url != self.banner_image_url:
-                self.banner_image_url = banner_image_url
-                await self.asave()
+        if banner_image_url and banner_image_url != self.banner_image_url:
+            # await sync_to_async(self.download_banner_image)()
+            # TODO(TheLovinator): Download the image.  # noqa: TD003
+            self.banner_image_url = banner_image_url
+            await self.asave()
 
         thumbnail_image_url = data.get("thumbnailImage", {}).get("image1xURL")
-        if thumbnail_image_url:
-            await sync_to_async(self.download_thumbnail_image)()
-            if thumbnail_image_url != self.thumbnail_image_url:
-                self.thumbnail_image_url = thumbnail_image_url
-                await self.asave()
+        if thumbnail_image_url and thumbnail_image_url != self.thumbnail_image_url:
+            # await sync_to_async(self.download_thumbnail_image)()
+            # TODO(TheLovinator): Download the image.  # noqa: TD003
+            self.thumbnail_image_url = thumbnail_image_url
+            await self.asave()
 
         if reward_campaign and await sync_to_async(lambda: reward_campaign != self.campaign)():
             self.campaign = reward_campaign

@@ -46,6 +46,12 @@
         <tr>
             <td><img src="{{ drop_campaign.image_url }}" alt="{{ drop_campaign.name }} image"></td>
             <td>
+                <p><strong>Created at:</strong>
+                    {{ drop_campaign.created_at }}
+                </p>
+                <p><strong>Modified at:</strong>
+                    {{ drop_campaign.modified_at }}
+                </p>
                 <p><strong>Status:</strong>
                     {{ drop_campaign.status }}
                 </p>
