@@ -23,7 +23,7 @@ whitenoise = { extras = ["brotli"], version = "^6.7.0" }
 
 [tool.poetry.group.dev.dependencies]
 djlint = "^1.35.2"
-pre-commit = "^3.8.0"
+pre-commit = "^4.0.0"
 pytest = "^8.3.3"
 pytest-django = "^4.9.0"
 ruff = "^0.5.1"
