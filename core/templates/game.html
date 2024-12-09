@@ -1,106 +1,141 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="container">
-    <h2>{{ game.name }}</h2>
-    <img src="{{ game.box_art_url }}" alt="{{ game.name }} box art" height="283" width="212">
-    <h3>Game Details</h3>
-    <table class="table table-hover table-sm table-striped" cellspacing="0">
-        <tr>
-            <td><strong>Twitch ID:</strong></td>
-            <td>{{ game.pk }}</td>
-        </tr>
-        <tr>
-            <td><strong>Game URL:</strong></td>
-            <td><a href="{{ game.game_url }}" target="_blank">{{ game.game_url }}</a></td>
-        </tr>
-        <tr>
-            <td><strong>Game name:</strong></td>
-            <td>{{ game.name }}</td>
-        </tr>
-        <tr>
-            <td><strong>Game box art URL:</strong></td>
-            <td><a href="{{ game.box_art_url }}" target="_blank">{{ game.box_art_url }}</a></td>
-        </tr>
-    </table>
-    <h3>Organization</h3>
-    <table class="table table-hover table-sm table-striped" cellspacing="0">
-        <tr>
-            {% if game.org %}
-            <td><a href="#">{{ game.org.name }} -
-                    <span class="text-muted">{{ game.org.pk }}</span></a></td>
-            {% else %}
-            <td>No organization associated with this game.</td>
-            {% endif %}
-        </tr>
-    </table>
-    <h3>Drop Campaigns</h3>
-    {% if game.drop_campaigns.all %}
-    {% for drop_campaign in game.drop_campaigns.all %}
-    <br>
-    <h2>{{ drop_campaign.name }}</h2>
-    <table class="table table-hover table-sm table-striped" cellspacing="0">
-        <tr>
-            <td><strong>Campaign Name:</strong></td>
-            <td>{{ drop_campaign.name }}</td>
-        </tr>
-        <tr>
-            <td><img src="{{ drop_campaign.image_url }}" alt="{{ drop_campaign.name }} image"></td>
-            <td>
-                <p><strong>Created at:</strong>
-                    {{ drop_campaign.created_at }}
-                </p>
-                <p><strong>Modified at:</strong>
-                    {{ drop_campaign.modified_at }}
-                </p>
-                <p><strong>Status:</strong>
-                    {{ drop_campaign.status }}
-                </p>
-                <p><strong>Description:</strong>
-                    {{ drop_campaign.description }}
-                </p>
-                <p><strong>Starts at:</strong>
-                    {{ drop_campaign.starts_at }}
-                </p>
-                <p><strong>Ends at:</strong>
-                    {{ drop_campaign.ends_at }}
-                </p>
-                <p><strong>More details:</strong>
-                    <a href="{{ drop_campaign.details_url }}" target="_blank">{{ drop_campaign.details_url }}</a>
-                </p>
-                <p><strong>Account Link:</strong>
-                    <a href="{{ drop_campaign.account_link_url }}"
-                        target="_blank">{{ drop_campaign.account_link_url }}</a>
-                </p>
-            </td>
-        </tr>
-    </table>
-    {% if drop_campaign.drops.all %}
-    <table class="table table-hover table-sm table-striped" cellspacing="0">
-        <tr>
-            <th>ID</th>
-            <th>Item Name</th>
-            <th>Minutes</th>
-            <th>Image</th>
-            <th>Benefit Name</th>
-        </tr>
-        {% for item in drop_campaign.drops.all %}
-        <tr>
-            <td>{{ item.pk }}</td>
-            <td>{{ item.name }}</td>
-            <td>{{ item.required_minutes_watched }}</td>
-            {% for benefit in item.benefits.all %}
-            <td><img src="{{ benefit.image_url }}" alt="{{ benefit.name }} reward image" height="50" width="50"></td>
-            <td>{{ benefit.name }}</td>
+    <div class="container">
+        <h2>{{ game.name }}</h2>
+        <img src="{{ game.box_art_url }}"
+             alt="{{ game.name }} box art"
+             height="283"
+             width="212" />
+        <h3>Game Details</h3>
+        <table class="table table-hover table-sm table-striped" cellspacing="0">
+            <tr>
+                <td>
+                    <strong>Twitch ID:</strong>
+                </td>
+                <td>{{ game.pk }}</td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Game URL:</strong>
+                </td>
+                <td>
+                    <a href="{{ game.game_url }}" target="_blank">{{ game.game_url }}</a>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Game name:</strong>
+                </td>
+                <td>{{ game.name }}</td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Game box art URL:</strong>
+                </td>
+                <td>
+                    <a href="{{ game.box_art_url }}" target="_blank">{{ game.box_art_url }}</a>
+                </td>
+            </tr>
+        </table>
+        <h3>Organization</h3>
+        <table class="table table-hover table-sm table-striped" cellspacing="0">
+            <tr>
+                {% if game.org %}
+                    <td>
+                        <a href="#">{{ game.org.name }} -
+                            <span class="text-muted">{{ game.org.pk }}</span></a>
+                    </td>
+                {% else %}
+                    <td>No organization associated with this game.</td>
+                {% endif %}
+            </tr>
+        </table>
+        <h3>Drop Campaigns</h3>
+        {% if game.drop_campaigns.all %}
+            {% for drop_campaign in game.drop_campaigns.all %}
+                <br />
+                <h2>{{ drop_campaign.name }}</h2>
+                <table class="table table-hover table-sm table-striped" cellspacing="0">
+                    <tr>
+                        <td>
+                            <strong>Campaign Name:</strong>
+                        </td>
+                        <td>{{ drop_campaign.name }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <img src="{{ drop_campaign.image_url }}"
+                                 alt="{{ drop_campaign.name }} image" />
+                        </td>
+                        <td>
+                            <p>
+                                <strong>Created at:</strong>
+                                {{ drop_campaign.created_at }}
+                            </p>
+                            <p>
+                                <strong>Modified at:</strong>
+                                {{ drop_campaign.modified_at }}
+                            </p>
+                            <p>
+                                <strong>Status:</strong>
+                                {{ drop_campaign.status }}
+                            </p>
+                            <p>
+                                <strong>Description:</strong>
+                                {{ drop_campaign.description }}
+                            </p>
+                            <p>
+                                <strong>Starts at:</strong>
+                                {{ drop_campaign.starts_at }}
+                            </p>
+                            <p>
+                                <strong>Ends at:</strong>
+                                {{ drop_campaign.ends_at }}
+                            </p>
+                            <p>
+                                <strong>More details:</strong>
+                                <a href="{{ drop_campaign.details_url }}" target="_blank">{{ drop_campaign.details_url }}</a>
+                            </p>
+                            <p>
+                                <strong>Account Link:</strong>
+                                <a href="{{ drop_campaign.account_link_url }}" target="_blank">{{ drop_campaign.account_link_url }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                {% if drop_campaign.drops.all %}
+                    <table class="table table-hover table-sm table-striped" cellspacing="0">
+                        <tr>
+                            <th>ID</th>
+                            <th>Item Name</th>
+                            <th>Minutes</th>
+                            <th>Image</th>
+                            <th>Benefit Name</th>
+                        </tr>
+                        {% for item in drop_campaign.drops.all %}
+                            <tr>
+                                <td>{{ item.pk }}</td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.required_minutes_watched }}</td>
+                                {% for benefit in item.benefits.all %}
+                                    <td>
+                                        <img src="{{ benefit.image_url }}"
+                                             alt="{{ benefit.name }} reward image"
+                                             height="50"
+                                             width="50" />
+                                    </td>
+                                    <td>{{ benefit.name }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </table>
+                {% else %}
+                    <p>No items associated with this drop campaign.</p>
+                {% endif %}
             {% endfor %}
-        </tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <p>No items associated with this drop campaign.</p>
-    {% endif %}
-    {% endfor %}
-    {% else %}
-    <p>No drop campaigns associated with this game.</p>
-    {% endif %}
-</div>
+        {% else %}
+            <p>No drop campaigns associated with this game.</p>
+        {% endif %}
+    </div>
 {% endblock content %}

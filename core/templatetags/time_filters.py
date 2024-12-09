@@ -22,6 +22,4 @@ def minutes_to_hours(minutes: int | None) -> str:
         if remaining_minutes > 0:
             return f"{hours}h {remaining_minutes}m"
         return f"{hours}h"
-    if remaining_minutes > 0:
-        return f"{remaining_minutes}m"
-    return "0m"
+    return f"{remaining_minutes}m" if remaining_minutes > 0 else "0m"

@@ -1,21 +1,22 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
-
     <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="description" content="Twitch drops">
-        <meta name="author" content="TheLovinator">
-        <meta name="keywords" content="Twitch, drops">
-        <meta name="robots" content="index, follow">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="Twitch drops" />
+        <meta name="author" content="TheLovinator" />
+        <meta name="keywords" content="Twitch, drops" />
+        <meta name="robots" content="index, follow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Twitch drops</title>
-        <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+        <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}" />
+        <link rel="stylesheet" href="{% static 'css/style.css' %}" />
     </head>
-
-    <body data-bs-spy="scroll" data-bs-target=".toc" data-bs-offset="-200" tabindex="0">
+    <body data-bs-spy="scroll"
+          data-bs-target=".toc"
+          data-bs-offset="-200"
+          tabindex="0">
         {% include "partials/alerts.html" %}
         <article class="container mt-5">
             {% include "partials/header.html" %}
@@ -24,5 +25,4 @@
         </article>
         <script src="{% static 'js/bootstrap.min.js' %}"></script>
     </body>
-
 </html>

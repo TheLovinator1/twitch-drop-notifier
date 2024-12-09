@@ -1,13 +1,21 @@
 import os
 from pathlib import Path
+from typing import Literal
 
-import sentry_sdk
+import django_stubs_ext
 from django.contrib import messages
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 from platformdirs import user_data_dir
 
-load_dotenv(dotenv_path=find_dotenv(), verbose=True)
+# Monkeypatching Django, so stubs will work for all generics,
+# see: https://github.com/typeddjango/django-stubs
+django_stubs_ext.monkeypatch()
 
+# Parse a .env file and then load all the variables found as environment variables.
+load_dotenv(verbose=True)
+
+# Store data in %APPDATA%/TheLovinator/TTVDrops on Windows and ~/.config/TheLovinator/TTVDrops on Linux.
+# Sqlite database and images will be stored here.
 DATA_DIR = Path(
     user_data_dir(
         appname="TTVDrops",
@@ -17,63 +25,89 @@ DATA_DIR = Path(
     ),
 )
 
+# Default to DEBUG=True if not set.
+# Turn off with DEBUG=False in .env file or environment variable.
 DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
 
-if not DEBUG:
-    sentry_sdk.init(
-        dsn="https://35519536b56710e51cac49522b2cc29f@o4505228040339456.ingest.sentry.io/4506447308914688",
-        environment="Production",
-        send_default_pii=True,
-        traces_sample_rate=0.2,
-        profiles_sample_rate=0.2,
-    )
-
+# The base directory of the project.
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
+
+# A list of all the people who get code error notifications. When DEBUG=False and AdminEmailHandler is configured in
+# LOGGING (done by default), Django emails these people the details of exceptions raised in the request/response cycle.
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
+
+# The full Python path of the WSGI application object that Django's built-in servers (e.g. runserver) will use.
 WSGI_APPLICATION = "core.wsgi.application"
+
+# A secret key for a particular Django installation. This is used to provide cryptographic signing,
+# and should be set to a unique, unpredictable value.
 SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY", default="")
-TIME_ZONE = "Europe/Stockholm"
-USE_TZ = True
-LANGUAGE_CODE = "en-us"
-DECIMAL_SEPARATOR = ","
-THOUSAND_SEPARATOR = " "
+
+# A string representing the full Python import path to your root URLconf
 ROOT_URLCONF = "core.urls"
+
+# URL to use when referring to static files located in STATIC_ROOT.
 STATIC_URL = "static/"
+
+# Default primary key field type to use for models that don't have a field with primary_key=True.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
+# This setting defines the additional locations the staticfiles app will traverse if the FileSystemFinder finder is
+# enabled, e.g. if you use the "collectstatic" or "findstatic" management command or use the static file serving view.
+STATICFILES_DIRS: list[Path] = [
+    BASE_DIR / "static",
+]
+
+# The absolute path to the directory where collectstatic will collect static files for deployment.
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
-STATIC_ROOT.mkdir(exist_ok=True)
+STATIC_ROOT.mkdir(exist_ok=True)  # Create the directory if it doesn't exist.
 
+# URL that handles the media served from MEDIA_ROOT, used for managing stored files.
+# It must end in a slash if set to a non-empty value.
 MEDIA_URL = "/media/"
-MEDIA_ROOT: Path = DATA_DIR / "media"
-MEDIA_ROOT.mkdir(exist_ok=True)
 
-AUTH_USER_MODEL = "core.User"
+# Absolute filesystem path to the directory that will hold user-uploaded files.
+MEDIA_ROOT: Path = DATA_DIR / "media"
+MEDIA_ROOT.mkdir(exist_ok=True)  # Create the directory if it doesn't exist.
+
+# The model to use to represent a User.
+# ! You cannot change the AUTH_USER_MODEL setting during the lifetime of a project
+# ! (i.e. once you have made and migrated models that depend on it) without serious effort.
+# ! It is intended to be set at the project start, and the model it refers to must be available
+# ! in the first migration of the app that it lives in.
+AUTH_USER_MODEL: Literal["core.User"] = "core.User"
+
 if DEBUG:
-    INTERNAL_IPS: list[str] = ["127.0.0.1"]
+    # A list of IP addresses, as strings, that:
+    # - Allow the debug() context processor to add some variables to the template context.
+    # - Can use the admindocs bookmarklets even if not logged in as a staff user.
+    # - Are marked as “internal” (as opposed to “EXTERNAL”) in AdminEmailHandler emails.
+
+    # This is needed for the Django Debug Toolbar to work.
+    INTERNAL_IPS: list[str] = ["127.0.0.1", "192.168.1.129"]
 
 if not DEBUG:
+    # List of strings representing the host/domain names that this Django site can serve
     ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space", "localhost"]
 
+# The host to use for sending email.
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER: str = os.getenv(key="EMAIL_HOST_USER", default="webmaster@localhost")
-EMAIL_HOST_PASSWORD: str = os.getenv(key="EMAIL_HOST_PASSWORD", default="")
+EMAIL_HOST_USER: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+EMAIL_HOST_PASSWORD: str | None = os.getenv(key="EMAIL_HOST_PASSWORD", default=None)
 EMAIL_SUBJECT_PREFIX = "[TTVDrops] "
 EMAIL_USE_LOCALTIME = True
 EMAIL_TIMEOUT = 10
-DEFAULT_FROM_EMAIL: str = os.getenv(
-    key="EMAIL_HOST_USER",
-    default="webmaster@localhost",
-)
-SERVER_EMAIL: str = os.getenv(key="EMAIL_HOST_USER", default="webmaster@localhost")
+DEFAULT_FROM_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+SERVER_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+
+# Discord webhook URL for sending notifications.
 DISCORD_WEBHOOK_URL: str = os.getenv(key="DISCORD_WEBHOOK_URL", default="")
 
+# The list of all installed applications that Django knows about.
 INSTALLED_APPS: list[str] = [
     "core.apps.CoreConfig",
-    "whitenoise.runserver_nostatic",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -81,28 +115,35 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    "simple_history",
     "debug_toolbar",
 ]
 
+# Middleware is a framework of hooks into Django's request/response processing.
+# https://docs.djangoproject.com/en/dev/topics/http/middleware/
 MIDDLEWARE: list[str] = [
     "django.middleware.gzip.GZipMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
-TEMPLATES = [
+# Settings for the template engine.
+TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[tuple[str, list[str]]]]]] = [
     {
+        # Use the Django template backend instead of Jinja2.
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        # Directories where the engine should look for template source files, in search order.
         "DIRS": [BASE_DIR / "templates"],
+        # Whether the engine should look for template source files inside installed applications.
+        "APP_DIRS": True,
+        # Extra parameters to pass to the template backend.
+        # https://docs.djangoproject.com/en/dev/topics/templates/#django.template.backends.django.DjangoTemplates
         "OPTIONS": {
+            # Callables that are used to populate the context when a template is rendered with a request.
             "context_processors": [
                 "django.contrib.auth.context_processors.auth",
                 "django.template.context_processors.i18n",
@@ -110,46 +151,28 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.messages.context_processors.messages",
             ],
-            "loaders": [
-                (
-                    "django.template.loaders.cached.Loader",
-                    [
-                        "django.template.loaders.filesystem.Loader",
-                        "django.template.loaders.app_directories.Loader",
-                    ],
-                ),
-            ],
         },
     },
 ]
 
-# Don't cache templates in development
-if DEBUG:
-    TEMPLATES[0]["OPTIONS"]["loaders"] = [
-        "django.template.loaders.filesystem.Loader",
-        "django.template.loaders.app_directories.Loader",
-    ]
-
-DATABASES = {
+# TODO(TheLovinator): Run psycopg[c] in production.
+# https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
+DATABASES: dict[str, dict[str, str | dict[str, bool]]] = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": DATA_DIR / "ttvdrops.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv(key="DB_NAME", default=""),
+        "USER": os.getenv(key="DB_USER", default=""),
+        "PASSWORD": os.getenv(key="DB_PASSWORD", default=""),
+        "HOST": os.getenv(key="DB_HOST", default=""),
+        "PORT": os.getenv(key="DB_PORT", default=""),
         "OPTIONS": {
-            "init_command": "PRAGMA journal_mode=wal; PRAGMA synchronous=1; PRAGMA mmap_size=134217728; PRAGMA journal_size_limit=67108864; PRAGMA cache_size=2000;",  # noqa: E501
+            "pool": True,  # TODO(TheLovinator): Benchmark this.  # noqa: TD003
         },
     },
 }
 
-STORAGES: dict[str, dict[str, str]] = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
 
-LOGGING = {
+LOGGING: dict[str, int | bool | dict[str, dict[str, str | list[str] | bool]]] = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
@@ -172,6 +195,7 @@ LOGGING = {
     },
 }
 
+# Bootstrap alert classes for Django messages
 MESSAGE_TAGS: dict[int, str] = {
     messages.DEBUG: "alert-info",
     messages.INFO: "alert-info",
@@ -180,15 +204,15 @@ MESSAGE_TAGS: dict[int, str] = {
     messages.ERROR: "alert-danger",
 }
 
-# CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24  # 1 day
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-#         "LOCATION": DATA_DIR / "django_cache",
-#     },
-# }
+# The ID, as an integer, of the current site in the django_site database table.
+# This is used so that application data can hook into specific sites and a
+# single database can manage content for multiple sites.
 SITE_ID = 1
 
-
+# The URL or named URL pattern where requests are redirected after login when the LoginView doesn't
+# get a next GET parameter. Defaults to /accounts/profile/.
 LOGIN_REDIRECT_URL = "/"
-ACCOUNT_LOGOUT_REDIRECT_URL = "/"
+
+# The URL or named URL pattern where requests are redirected after logout if LogoutView doesn't have
+# a next_page attribute.
+LOGOUT_REDIRECT_URL = "/"

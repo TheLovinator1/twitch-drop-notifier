@@ -1,14 +1,12 @@
 {% extends "base.html" %}
-{% load static %}
-{% load campaign_tags %}
-{% load game_tags %}
+{% load campaign_tags game_tags static %}
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <h2>Reward Campaigns</h2>
-        {% for campaign in reward_campaigns %}
-        {% render_campaign campaign %}
-        {% endfor %}
+    <div class="container mt-4">
+        <div class="row">
+            <h2>Reward Campaigns</h2>
+            {% for campaign in reward_campaigns %}
+                {% render_campaign campaign %}
+            {% endfor %}
+        </div>
     </div>
-</div>
 {% endblock content %}

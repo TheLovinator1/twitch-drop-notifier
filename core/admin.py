@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Benefit, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
+from core.models import Benefit, DropCampaign, Game, Owner, Reward, RewardCampaign, TimeBasedDrop
 
 admin.site.register(Game)
 admin.site.register(Owner)

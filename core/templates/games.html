@@ -1,34 +1,37 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="container mt-4">
-    {% for game in games %}
-    <div class="card mb-4 shadow-sm">
-        <div class="row g-0">
-            <div class="col-md-2">
-                <img src="{{ game.box_art_url }}" alt="{{ game.name }} box art" class="img-fluid rounded-start"
-                    height="283" width="212" loading="lazy">
-            </div>
-            <div class="col-md-10">
-                <div class="card-body">
-                    <h2 class="card-title h5">
-                        <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
-                            class="text-decoration-none">{{ game.name }}</a>
-                    </h2>
-                    <div>
-                        <a href="{% url 'game' game.pk %}" class="text-decoration-none">See previous drops</a>
+    <div class="container mt-4">
+        {% for game in games %}
+            <div class="card mb-4 shadow-sm">
+                <div class="row g-0">
+                    <div class="col-md-2">
+                        <img src="{{ game.box_art_url }}"
+                             alt="{{ game.name }} box art"
+                             class="img-fluid rounded-start"
+                             height="283"
+                             width="212"
+                             loading="lazy" />
                     </div>
-                    <div>
-                        <a href="" class="text-decoration-none">Subscribe to new drops</a>
+                    <div class="col-md-10">
+                        <div class="card-body">
+                            <h2 class="card-title h5">
+                                <a href="https://www.twitch.tv/directory/category/{{ game.slug }}"
+                                   class="text-decoration-none">{{ game.name }}</a>
+                            </h2>
+                            <div>
+                                <a href="{% url 'game' game.pk %}" class="text-decoration-none">See previous drops</a>
+                            </div>
+                            <div>
+                                <a href="" class="text-decoration-none">Subscribe to new drops</a>
+                            </div>
+                            <div>
+                                <a href="" class="text-decoration-none">Subscribe to active drops</a>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <a href="" class="text-decoration-none">Subscribe to active drops</a>
-
-                    </div>
-
                 </div>
             </div>
-        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-</div>
 {% endblock content %}
