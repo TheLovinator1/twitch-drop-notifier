@@ -1,0 +1,6 @@
+discord-webhook
+django
+django-debug-toolbar
+platformdirs
+psycopg[binary,pool]
+python-dotenv
