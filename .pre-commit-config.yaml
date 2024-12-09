@@ -1,6 +1,13 @@
 default_language_version:
-  python: python3.12
+  python: python3.13
 repos:
+  # A Django template formatter.
+  - repo: https://github.com/adamchainz/djade-pre-commit
+    rev: "1.3.2"
+    hooks:
+      - id: djade
+        args: [--target-version, "5.1"]
+
   # Automatically add trailing commas to calls and literals.
   - repo: https://github.com/asottile/add-trailing-comma
     rev: v3.1.0
@@ -11,46 +18,53 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      - id: check-added-large-files
       - id: check-ast
       - id: check-builtin-literals
+      - id: check-case-conflict
       - id: check-docstring-first
       - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
       - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
       - id: check-toml
       - id: check-vcs-permalinks
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-private-key
       - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: forbid-new-submodules
       - id: mixed-line-ending
       - id: name-tests-test
-        args: [ --pytest-test-first ]
+      - id: requirements-txt-fixer
       - id: trailing-whitespace
-        args: [ --markdown-linebreak-ext=md ]
-        exclude_types:
-          - "html"
 
   # Automatically upgrade your Django project code
   - repo: https://github.com/adamchainz/django-upgrade
-    rev: "1.22.1"
+    rev: "1.22.2"
     hooks:
       - id: django-upgrade
-        args: [ --target-version, "5.1" ]
+        args: [--target-version, "5.1"]
 
-  # Run Pyupgrade on all Python files. This will upgrade the code to Python 3.12.
+  # A tool (and pre-commit hook) to automatically upgrade syntax for newer versions of the language.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.18.0
+    rev: v3.19.0
     hooks:
       - id: pyupgrade
-        args: [ "--py312-plus" ]
+        args: ["--py311-plus"]
 
   # An extremely fast Python linter and formatter.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.8.2
     hooks:
       - id: ruff-format
       - id: ruff
-        args: [ "--fix", "--exit-non-zero-on-fix" ]
+        args: [--fix]
 
   # Static checker for GitHub Actions workflow files.
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.3
+    rev: v1.7.4
     hooks:
       - id: actionlint
