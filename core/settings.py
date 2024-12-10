@@ -106,8 +106,10 @@ SERVER_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
 DISCORD_WEBHOOK_URL: str = os.getenv(key="DISCORD_WEBHOOK_URL", default="")
 
 # The list of all installed applications that Django knows about.
+# Be sure to add pghistory.admin above the django.contrib.admin, otherwise the custom admin templates won't be used.
 INSTALLED_APPS: list[str] = [
     "core.apps.CoreConfig",
+    "pghistory.admin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -116,6 +118,10 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "debug_toolbar",
+    "pgclone",
+    "pghistory",
+    "pgstats",
+    "pgtrigger",
 ]
 
 # Middleware is a framework of hooks into Django's request/response processing.

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
+import auto_prefetch
+import pghistory
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 from core.models_utils import update_fields, wrong_typename
+
+if TYPE_CHECKING:
+    from django.db.models import Index
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -14,7 +19,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 class User(AbstractUser):
     """Custom user model."""
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["username"]
 
     def __str__(self) -> str:
@@ -22,7 +27,7 @@ class User(AbstractUser):
         return self.username
 
 
-class ScrapedJson(models.Model):
+class ScrapedJson(auto_prefetch.Model):
     """The JSON data from the Twitch API.
 
     This data is from https://github.com/TheLovinator1/TwitchDropsMiner.
@@ -33,7 +38,7 @@ class ScrapedJson(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     imported_at = models.DateTimeField(null=True)
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["-created_at"]
 
     def __str__(self) -> str:
@@ -41,26 +46,44 @@ class ScrapedJson(models.Model):
         return f"{'' if self.imported_at else 'Not imported - '}{self.created_at}"
 
 
-class Owner(models.Model):
+@pghistory.track()
+class Owner(auto_prefetch.Model):
     """The company or person that owns the game.
 
     Drops will be grouped by the owner. Users can also subscribe to owners.
+
+    JSON:
+        {
+            "data": {
+                "user": {
+                    "dropCampaign": {
+                        "owner": {
+                            "id": "36c4e21d-bdf3-410c-97c3-5a5a4bf1399b",
+                            "name": "The Pok\u00e9mon Company",
+                            "__typename": "Organization"
+                        }
+                    }
+                }
+            }
+        }
     """
 
-    # "ad299ac0-f1a5-417d-881d-952c9aed00e9"
-    twitch_id = models.TextField(primary_key=True)
-
-    # When the owner was first added to the database.
+    # Django fields
+    # Example: "36c4e21d-bdf3-410c-97c3-5a5a4bf1399b"
+    twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the owner.")
     created_at = models.DateTimeField(auto_created=True)
-
-    # When the owner was last modified.
     modified_at = models.DateTimeField(auto_now=True)
 
-    # "Microsoft"
-    name = models.TextField(blank=True)
+    # Twitch fields
+    # Example: "The Pokémon Company"
+    name = models.TextField(blank=True, help_text="The name of the owner.")
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["name"]
+        indexes: ClassVar[list[Index]] = [
+            models.Index(fields=["name"], name="owner_name_idx"),
+            models.Index(fields=["created_at"], name="owner_created_at_idx"),
+        ]
 
     def __str__(self) -> str:
         """Return the name of the owner."""
@@ -79,40 +102,113 @@ class Owner(models.Model):
         return self
 
 
-class Game(models.Model):
-    """The game the drop campaign is for. Note that some reward campaigns are not tied to a game."""
+@pghistory.track()
+class Game(auto_prefetch.Model):
+    """The game the drop campaign is for. Note that some reward campaigns are not tied to a game.
 
-    # "509658"
-    twitch_id = models.TextField(primary_key=True)
+    JSON:
+        {
+            "data": {
+                "user": {
+                    "dropCampaign": {
+                        "game": {
+                            "id": "155409827",
+                            "slug": "pokemon-trading-card-game-live",
+                            "displayName": "Pok\u00e9mon Trading Card Game Live",
+                            "__typename": "Game"
+                        }
+                    }
+                }
+            }
+        }
 
-    # When the game was first added to the database.
-    created_at = models.DateTimeField(auto_created=True)
+    Secondary JSON:
+        {
+            "data": {
+                "currentUser": {
+                    "dropCampaigns": [
+                        {
+                            "game": {
+                                "id": "155409827",
+                                "displayName": "Pok\u00e9mon Trading Card Game Live",
+                                "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/155409827_IGDB-120x160.jpg",
+                                "__typename": "Game"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
 
-    # When the game was last modified.
-    modified_at = models.DateTimeField(auto_now=True)
+    Tertiary JSON:
+        [
+            {
+                "data": {
+                    "user": {
+                        "dropCampaign": {
+                            "timeBasedDrops": [
+                                {
+                                    "benefitEdges": [
+                                        {
+                                            "benefit": {
+                                                "id": "ea74f727-a52f-11ef-811f-0a58a9feac02",
+                                                "createdAt": "2024-11-17T22:04:28.735Z",
+                                                "entitlementLimit": 1,
+                                                "game": {
+                                                    "id": "155409827",
+                                                    "name": "Pok\u00e9mon Trading Card Game Live",
+                                                    "__typename": "Game"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        ]
+    """
 
-    # "https://www.twitch.tv/directory/category/halo-infinite"
-    game_url = models.URLField(blank=True)
+    # Django fields
+    # "155409827"
+    twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the game.")
+    created_at = models.DateTimeField(auto_created=True, help_text="When the game was first added to the database.")
+    modified_at = models.DateTimeField(auto_now=True, help_text="When the game was last modified.")
 
-    # "Halo Infinite"
-    name = models.TextField(blank=True)
+    # Twitch fields
+    # "https://www.twitch.tv/directory/category/pokemon-trading-card-game-live"
+    # This is created when the game is created.
+    game_url = models.URLField(blank=True, help_text="The URL to the game on Twitch.")
 
-    # "https://static-cdn.jtvnw.net/ttv-boxart/Halo%20Infinite.jpg"
-    box_art_url = models.URLField(blank=True)
+    # "Pokémon Trading Card Game Live"
+    display_name = models.TextField(blank=True, help_text="The display name of the game.")
 
-    # "halo-infinite"
+    # "Pokémon Trading Card Game Live"
+    name = models.TextField(blank=True, help_text="The name of the game.")
+
+    # "https://static-cdn.jtvnw.net/ttv-boxart/155409827_IGDB-120x160.jpg"
+    box_art_url = models.URLField(blank=True, help_text="URL to the box art of the game.")
+
+    # "pokemon-trading-card-game-live"
     slug = models.TextField(blank=True)
 
     # The owner of the game.
     # This is optional because some games are not tied to an owner.
-    org = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
+    org = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="games", null=True)
 
-    class Meta:
-        ordering: ClassVar[list[str]] = ["name"]
+    class Meta(auto_prefetch.Model.Meta):
+        ordering: ClassVar[list[str]] = ["display_name"]
+        indexes: ClassVar[list[Index]] = [
+            models.Index(fields=["display_name"], name="game_display_name_idx"),
+            models.Index(fields=["name"], name="game_name_idx"),
+            models.Index(fields=["created_at"], name="game_created_at_idx"),
+        ]
 
     def __str__(self) -> str:
         """Return the name of the game and when it was created."""
-        return f"{self.name or self.twitch_id} - {self.created_at}"
+        return f"{self.display_name or self.twitch_id} - {self.created_at}"
 
     def import_json(self, data: dict, owner: Owner | None) -> Self:
         """Import the data from the Twitch API."""
@@ -121,7 +217,8 @@ class Game(models.Model):
 
         # Map the fields from the JSON data to the Django model fields.
         field_mapping: dict[str, str] = {
-            "displayName": "name",
+            "displayName": "display_name",
+            "name": "name",
             "boxArtURL": "box_art_url",
             "slug": "slug",
         }
@@ -143,56 +240,63 @@ class Game(models.Model):
         return self
 
 
-class DropCampaign(models.Model):
+@pghistory.track()
+class DropCampaign(auto_prefetch.Model):
     """This is the drop campaign we will see on the front end."""
 
+    # Django fields
     # "f257ce6e-502a-11ef-816e-0a58a9feac02"
-    twitch_id = models.TextField(primary_key=True)
+    twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the drop campaign.")
+    created_at = models.DateTimeField(
+        auto_created=True,
+        help_text="When the drop campaign was first added to the database.",
+    )
+    modified_at = models.DateTimeField(auto_now=True, help_text="When the drop campaign was last modified.")
 
-    # When the drop campaign was first added to the database.
-    created_at = models.DateTimeField(auto_created=True)
-
-    # When the drop campaign was last modified.
-    modified_at = models.DateTimeField(auto_now=True)
-
+    # Twitch fields
     # "https://www.halowaypoint.com/settings/linked-accounts"
-    account_link_url = models.URLField(blank=True)
+    account_link_url = models.URLField(blank=True, help_text="The URL to link accounts for the drop campaign.")
 
     # "Tune into this HCS Grassroots event to earn Halo Infinite in-game content!"
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, help_text="The description of the drop campaign.")
 
     # "https://www.halowaypoint.com"
-    details_url = models.URLField(blank=True)
+    details_url = models.URLField(blank=True, help_text="The URL to the details of the drop campaign.")
 
     # "2024-08-12T05:59:59.999Z"
-    ends_at = models.DateTimeField(null=True)
+    ends_at = models.DateTimeField(null=True, help_text="When the drop campaign ends.")
 
     # "2024-08-11T11:00:00Z""
-    starts_at = models.DateTimeField(null=True)
+    starts_at = models.DateTimeField(null=True, help_text="When the drop campaign starts.")
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/c8e02666-8b86-471f-bf38-7ece29a758e4.png"
-    image_url = models.URLField(blank=True)
+    image_url = models.URLField(blank=True, help_text="The URL to the image for the drop campaign.")
 
     # "HCS Open Series - Week 1 - DAY 2 - AUG11"
-    name = models.TextField(blank=True)
+    name = models.TextField(blank=True, help_text="The name of the drop campaign.")
 
     # "ACTIVE"
-    status = models.TextField(blank=True)
+    status = models.TextField(blank=True, help_text="The status of the drop campaign.")
 
     # The game this drop campaign is for.
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
+    game = auto_prefetch.ForeignKey(to=Game, on_delete=models.CASCADE, related_name="drop_campaigns", null=True)
 
     # The JSON data from the Twitch API.
     # We use this to find out where the game came from.
-    scraped_json = models.ForeignKey(
-        ScrapedJson,
+    scraped_json = auto_prefetch.ForeignKey(
+        to=ScrapedJson,
         null=True,
         on_delete=models.SET_NULL,
         help_text="Reference to the JSON data from the Twitch API.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["ends_at"]
+        indexes: ClassVar[list[Index]] = [
+            models.Index(fields=["name"], name="drop_campaign_name_idx"),
+            models.Index(fields=["starts_at"], name="drop_campaign_starts_at_idx"),
+            models.Index(fields=["ends_at"], name="drop_campaign_ends_at_idx"),
+        ]
 
     def __str__(self) -> str:
         """Return the name of the drop campaign and when it was created."""
@@ -226,18 +330,9 @@ class DropCampaign(models.Model):
         if updated > 0:
             logger.info("Updated %s fields for %s", updated, self)
 
-        # Update the drop campaign's status if the new status is different.
-        # When scraping local files:
-        #    - Only update if the status changes from "ACTIVE" to "EXPIRED".
-        # When scraping from the Twitch API:
-        #    - Always update the status regardless of its value.
-        status = data.get("status")
-        if status and status != self.status:
-            # Check if scraping local files and status changes from ACTIVE to EXPIRED
-            should_update = scraping_local_files and status == "EXPIRED" and self.status == "ACTIVE"
-
-            # Always update if not scraping local files
-            if not scraping_local_files or should_update:
+        if not scraping_local_files:
+            status = data.get("status")
+            if status and status != self.status:
                 self.status = status
                 self.save()
 
@@ -250,37 +345,102 @@ class DropCampaign(models.Model):
         return self
 
 
-class TimeBasedDrop(models.Model):
-    """This is the drop we will see on the front end."""
+@pghistory.track()
+class TimeBasedDrop(auto_prefetch.Model):
+    """This is the drop we will see on the front end.
 
+    JSON:
+        {
+            "data": {
+                "user": {
+                    "dropCampaign": {
+                        "timeBasedDrops": [
+                            {
+                                "id": "bd663e10-b297-11ef-a6a3-0a58a9feac02",
+                                "requiredSubs": 0,
+                                "benefitEdges": [
+                                    {
+                                        "benefit": {
+                                            "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad_CUSTOM_ID_EnergisingBoltFlaskEffect",
+                                            "createdAt": "2024-12-04T23:25:50.995Z",
+                                            "entitlementLimit": 1,
+                                            "game": {
+                                                "id": "1702520304",
+                                                "name": "Path of Exile 2",
+                                                "__typename": "Game"
+                                            },
+                                            "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/d70e4e75-7237-4730-9a10-b6016aaaa795.png",
+                                            "isIosAvailable": false,
+                                            "name": "Energising Bolt Flask",
+                                            "ownerOrganization": {
+                                                "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad",
+                                                "name": "Grinding Gear Games",
+                                                "__typename": "Organization"
+                                            },
+                                            "distributionType": "DIRECT_ENTITLEMENT",
+                                            "__typename": "DropBenefit"
+                                        },
+                                        "entitlementLimit": 1,
+                                        "__typename": "DropBenefitEdge"
+                                    }
+                                ],
+                                "endAt": "2024-12-14T07:59:59.996Z",
+                                "name": "Early Access Bundle",
+                                "preconditionDrops": null,
+                                "requiredMinutesWatched": 180,
+                                "startAt": "2024-12-06T19:00:00Z",
+                                "__typename": "TimeBasedDrop"
+                            }
+                        ],
+                        "__typename": "DropCampaign"
+                    },
+                    "__typename": "User"
+                }
+            }
+        }
+    """  # noqa: E501
+
+    # Django fields
     # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
-    twitch_id = models.TextField(primary_key=True)
+    twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the drop.")
+    created_at = models.DateTimeField(auto_created=True, help_text="When the drop was first added to the database.")
+    modified_at = models.DateTimeField(auto_now=True, help_text="When the drop was last modified.")
 
-    # When the drop was first added to the database.
-    created_at = models.DateTimeField(auto_created=True)
-
-    # When the drop was last modified.
-    modified_at = models.DateTimeField(auto_now=True)
-
+    # Twitch fields
     # "1"
-    required_subs = models.PositiveBigIntegerField(null=True)
+    required_subs = models.PositiveBigIntegerField(null=True, help_text="The number of subs required for the drop.")
 
     # "2024-08-12T05:59:59.999Z"
-    ends_at = models.DateTimeField(null=True)
+    ends_at = models.DateTimeField(null=True, help_text="When the drop ends.")
 
     # "Cosmic Nexus Chimera"
-    name = models.TextField(blank=True)
+    name = models.TextField(blank=True, help_text="The name of the drop.")
 
     # "120"
-    required_minutes_watched = models.PositiveBigIntegerField(null=True)
+    required_minutes_watched = models.PositiveBigIntegerField(
+        null=True,
+        help_text="The number of minutes watched required.",
+    )
 
     # "2024-08-11T11:00:00Z"
-    starts_at = models.DateTimeField(null=True)
+    starts_at = models.DateTimeField(null=True, help_text="When the drop starts.")
 
-    drop_campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="drops", null=True)
+    # The drop campaign this drop is part of.
+    drop_campaign = auto_prefetch.ForeignKey(
+        DropCampaign,
+        on_delete=models.CASCADE,
+        related_name="drops",
+        null=True,
+        help_text="The drop campaign this drop is part of.",
+    )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["required_minutes_watched"]
+        indexes: ClassVar[list[Index]] = [
+            models.Index(fields=["name"], name="time_based_drop_name_idx"),
+            models.Index(fields=["starts_at"], name="time_based_drop_starts_at_idx"),
+            models.Index(fields=["ends_at"], name="time_based_drop_ends_at_idx"),
+        ]
 
     def __str__(self) -> str:
         """Return the name of the drop and when it was created."""
@@ -290,6 +450,10 @@ class TimeBasedDrop(models.Model):
         """Import the data from the Twitch API."""
         if wrong_typename(data, "TimeBasedDrop"):
             return self
+
+        # preconditionDrops is null in the JSON. We probably should use it when we know what it is.
+        if data.get("preconditionDrops"):
+            logger.error("preconditionDrops is not None for %s", self)
 
         field_mapping: dict[str, str] = {
             "name": "name",
@@ -311,43 +475,63 @@ class TimeBasedDrop(models.Model):
         return self
 
 
-class Benefit(models.Model):
+@pghistory.track()
+class Benefit(auto_prefetch.Model):
     """Benefits are the rewards for the drops."""
 
+    # Django fields
     # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
     twitch_id = models.TextField(primary_key=True)
-
-    # When the benefit was first added to the database.
     created_at = models.DateTimeField(null=True, auto_created=True)
-
-    # When the benefit was last modified.
     modified_at = models.DateTimeField(auto_now=True)
 
-    #  Note: This is Twitch's created_at from the API.
+    # Twitch fields
+    # Note: This is Twitch's created_at from the API and not our created_at.
     # "2023-11-09T01:18:00.126Z"
-    twitch_created_at = models.DateTimeField(null=True)
+    twitch_created_at = models.DateTimeField(null=True, help_text="When the benefit was created on Twitch.")
 
     # "1"
-    entitlement_limit = models.PositiveBigIntegerField(null=True)
+    entitlement_limit = models.PositiveBigIntegerField(
+        null=True,
+        help_text="The number of times the benefit can be claimed.",
+    )
 
     # "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/e58ad175-73f6-4392-80b8-fb0223163733.png"
-    image_url = models.URLField(blank=True)
+    image_asset_url = models.URLField(blank=True, help_text="The URL to the image for the benefit.")
 
     # "True" or "False". None if unknown.
-    is_ios_available = models.BooleanField(null=True)
+    is_ios_available = models.BooleanField(null=True, help_text="If the benefit is farmable on iOS.")
 
     # "Cosmic Nexus Chimera"
-    name = models.TextField(blank=True)
+    name = models.TextField(blank=True, help_text="The name of the benefit.")
 
-    time_based_drop = models.ForeignKey(
+    # The game this benefit is for.
+    time_based_drop = auto_prefetch.ForeignKey(
         TimeBasedDrop,
         on_delete=models.CASCADE,
         related_name="benefits",
         null=True,
+        help_text="The time based drop this benefit is for.",
     )
 
-    class Meta:
+    # The game this benefit is for.
+    game = auto_prefetch.ForeignKey(Game, on_delete=models.CASCADE, related_name="benefits", null=True)
+
+    # The owner of the benefit.
+    owner_organization = auto_prefetch.ForeignKey(Owner, on_delete=models.CASCADE, related_name="benefits", null=True)
+
+    # Distribution type.
+    # "DIRECT_ENTITLEMENT"
+    distribution_type = models.TextField(blank=True, help_text="The distribution type of the benefit.")
+
+    class Meta(auto_prefetch.Model.Meta):
         ordering: ClassVar[list[str]] = ["-twitch_created_at"]
+        indexes: ClassVar[list[Index]] = [
+            models.Index(fields=["name"], name="benefit_name_idx"),
+            models.Index(fields=["twitch_created_at"], name="benefit_twitch_created_at_idx"),
+            models.Index(fields=["created_at"], name="benefit_created_at_idx"),
+            models.Index(fields=["is_ios_available"], name="benefit_is_ios_available_idx"),
+        ]
 
     def __str__(self) -> str:
         """Return the name of the benefit and when it was created."""
@@ -360,10 +544,11 @@ class Benefit(models.Model):
 
         field_mapping: dict[str, str] = {
             "name": "name",
-            "imageAssetURL": "image_url",
+            "imageAssetURL": "image_asset_url",
             "entitlementLimit": "entitlement_limit",
-            "isIOSAvailable": "is_ios_available",
+            "isIosAvailable": "is_ios_available",
             "createdAt": "twitch_created_at",
+            "distributionType": "distribution_type",
         }
         updated: int = update_fields(instance=self, data=data, field_mapping=field_mapping)
         if updated > 0:
@@ -378,201 +563,16 @@ class Benefit(models.Model):
             logger.info("Updated time based drop %s for %s", time_based_drop, self)
             self.save()
 
-        return self
-
-
-class RewardCampaign(models.Model):
-    """Buy subscriptions to earn rewards."""
-
-    # "dc4ff0b4-4de0-11ef-9ec3-621fb0811846"
-    twitch_id = models.TextField(primary_key=True)
-
-    # When the reward campaign was first added to the database.
-    created_at = models.DateTimeField(auto_created=True)
-
-    # When the reward campaign was last modified.
-    modified_at = models.DateTimeField(auto_now=True)
-
-    # "Buy 1 new sub, get 3 months of Apple TV+"
-    name = models.TextField(blank=True)
-
-    # "Apple TV+"
-    brand = models.TextField(blank=True)
-
-    # "2024-08-11T11:00:00Z"
-    starts_at = models.DateTimeField(null=True)
-
-    # "2024-08-12T05:59:59.999Z"
-    ends_at = models.DateTimeField(null=True)
-
-    # "UNKNOWN"
-    status = models.TextField(blank=True)
-
-    # "Get 3 months of Apple TV+ with the purchase of a new sub"
-    summary = models.TextField(blank=True)
-
-    # "Buy a new sub to get 3 months of Apple TV+"
-    instructions = models.TextField(blank=True)
-
-    # ""
-    reward_value_url_param = models.TextField(blank=True)
-
-    # "https://tv.apple.com/includes/commerce/redeem/code-entry"
-    external_url = models.URLField(blank=True)
-
-    # "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/"
-    about_url = models.URLField(blank=True)
-
-    # "True" or "False". None if unknown.
-    is_site_wide = models.BooleanField(null=True)
-
-    # "1"
-    subs_goal = models.PositiveBigIntegerField(null=True)
-
-    # "0"
-    minute_watched_goal = models.PositiveBigIntegerField(null=True)
-
-    # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png"
-    image_url = models.URLField(blank=True)
-
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="reward_campaigns", null=True)
-
-    scraped_json = models.ForeignKey(
-        ScrapedJson,
-        null=True,
-        on_delete=models.SET_NULL,
-        help_text="Reference to the JSON data from the Twitch API.",
-    )
-
-    class Meta:
-        ordering: ClassVar[list[str]] = ["-starts_at"]
-
-    def __str__(self) -> str:
-        """Return the name of the reward campaign and when it was created."""
-        return f"{self.name or self.twitch_id} - {self.created_at}"
-
-    def import_json(self, data: dict) -> Self:  # noqa: C901
-        """Import the data from the Twitch API."""
-        if wrong_typename(data, "RewardCampaign"):
-            return self
-
-        field_mapping: dict[str, str] = {
-            "name": "name",
-            "brand": "brand",
-            "startsAt": "starts_at",
-            "endsAt": "ends_at",
-            "status": "status",
-            "summary": "summary",
-            "instructions": "instructions",
-            "rewardValueURLParam": "reward_value_url_param",  # wtf is this?
-            "externalURL": "external_url",
-            "aboutURL": "about_url",
-            "isSitewide": "is_site_wide",
-        }
-
-        updated: int = update_fields(instance=self, data=data, field_mapping=field_mapping)
-        if updated > 0:
-            logger.info("Updated %s fields for %s", updated, self)
-
-        if data.get("unlockRequirements", {}):
-            subs_goal = data["unlockRequirements"].get("subsGoal")
-            if subs_goal and subs_goal != self.subs_goal:
-                self.subs_goal = subs_goal
-                self.save()
-
-            minutes_watched_goal = data["unlockRequirements"].get("minuteWatchedGoal")
-            if minutes_watched_goal and minutes_watched_goal != self.minute_watched_goal:
-                self.minute_watched_goal = minutes_watched_goal
-                self.save()
-
-        image_url = data.get("image", {}).get("image1xURL")
-        if image_url and image_url != self.image_url:
-            self.image_url = image_url
-            self.save()
-
         if data.get("game") and data["game"].get("id"):
             game_instance, created = Game.objects.update_or_create(twitch_id=data["game"]["id"])
             game_instance.import_json(data["game"], None)
             if created:
                 logger.info("Added game %s to %s", game_instance, self)
 
-        if "rewards" in data:
-            for reward in data["rewards"]:
-                reward_instance, created = Reward.objects.update_or_create(twitch_id=reward["id"])
-                reward_instance.import_json(reward, self)
-                if created:
-                    logger.info("Added reward %s to %s", reward_instance, self)
-
-        return self
-
-
-class Reward(models.Model):
-    """This from the RewardCampaign."""
-
-    # "dc2e9810-4de0-11ef-9ec3-621fb0811846"
-    twitch_id = models.TextField(primary_key=True)
-
-    # When the reward was first added to the database.
-    created_at = models.DateTimeField(auto_created=True)
-
-    # When the reward was last modified.
-    modified_at = models.DateTimeField(auto_now=True)
-
-    # "3 months of Apple TV+"
-    name = models.TextField(blank=True)
-
-    # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
-    banner_image_url = models.URLField(blank=True)
-
-    # "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png"
-    thumbnail_image_url = models.URLField(blank=True)
-
-    # "2024-08-19T19:00:00Z"
-    earnable_until = models.DateTimeField(null=True)
-
-    # ""
-    redemption_instructions = models.TextField(blank=True)
-
-    # "https://tv.apple.com/includes/commerce/redeem/code-entry"
-    redemption_url = models.URLField(blank=True)
-
-    campaign = models.ForeignKey(RewardCampaign, on_delete=models.CASCADE, related_name="rewards", null=True)
-
-    class Meta:
-        ordering: ClassVar[list[str]] = ["-earnable_until"]
-
-    def __str__(self) -> str:
-        """Return the name of the reward and when it was created."""
-        return f"{self.name or self.twitch_id} - {self.created_at}"
-
-    def import_json(self, data: dict, reward_campaign: RewardCampaign | None) -> Self:
-        """Import the data from the Twitch API."""
-        if wrong_typename(data, "Reward"):
-            return self
-
-        field_mapping: dict[str, str] = {
-            "name": "name",
-            "earnableUntil": "earnable_until",
-            "redemptionInstructions": "redemption_instructions",
-            "redemptionURL": "redemption_url",
-        }
-
-        updated: int = update_fields(instance=self, data=data, field_mapping=field_mapping)
-        if updated > 0:
-            logger.info("Updated %s fields for %s", updated, self)
-
-        banner_image_url = data.get("bannerImage", {}).get("image1xURL")
-        if banner_image_url and banner_image_url != self.banner_image_url:
-            self.banner_image_url = banner_image_url
-            self.save()
-
-        thumbnail_image_url = data.get("thumbnailImage", {}).get("image1xURL")
-        if thumbnail_image_url and thumbnail_image_url != self.thumbnail_image_url:
-            self.thumbnail_image_url = thumbnail_image_url
-            self.save()
-
-        if reward_campaign and reward_campaign != self.campaign:
-            self.campaign = reward_campaign
-            self.save()
+        if data.get("ownerOrganization") and data["ownerOrganization"].get("id"):
+            owner_instance, created = Owner.objects.update_or_create(twitch_id=data["ownerOrganization"]["id"])
+            owner_instance.import_json(data["ownerOrganization"])
+            if created:
+                logger.info("Added owner %s to %s", owner_instance, self)
 
         return self

@@ -12,6 +12,10 @@ dependencies = [
     "platformdirs",
     "psycopg[binary,pool]",
     "python-dotenv",
+    "django-pghistory",
+    "django-pgclone",
+    "django-pgstats",
+    "django-auto-prefetch",
 ]
 
 # You can install development dependencies with `uv install --dev`.

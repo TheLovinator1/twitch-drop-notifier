@@ -8,22 +8,13 @@ from django.http import HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
 from django.utils import timezone
 
-from core.models import Benefit, DropCampaign, Game, RewardCampaign, TimeBasedDrop
+from core.models import Benefit, DropCampaign, Game, TimeBasedDrop
 
 if TYPE_CHECKING:
     from django.db.models.query import QuerySet
     from django.http import HttpRequest
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-
-def get_reward_campaigns() -> QuerySet[RewardCampaign]:
-    """Get the reward campaigns.
-
-    Returns:
-        QuerySet[RewardCampaign]: The reward campaigns.
-    """
-    return RewardCampaign.objects.all().prefetch_related("rewards").order_by("-created_at")
 
 
 def get_games_with_drops() -> QuerySet[Game]:
@@ -66,7 +57,6 @@ def index(request: HttpRequest) -> HttpResponse:
         HttpResponse: The response object
     """
     try:
-        reward_campaigns: QuerySet[RewardCampaign] = get_reward_campaigns()
         games: QuerySet[Game] = get_games_with_drops()
 
     except Exception:
@@ -74,7 +64,6 @@ def index(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=500)
 
     context: dict[str, Any] = {
-        "reward_campaigns": reward_campaigns,
         "games": games,
     }
     return TemplateResponse(request, "index.html", context)
@@ -125,17 +114,3 @@ def games_view(request: HttpRequest) -> HttpResponse:
 
     context: dict[str, QuerySet[Game] | str] = {"games": games}
     return TemplateResponse(request=request, template="games.html", context=context)
-
-
-def reward_campaign_view(request: HttpRequest) -> HttpResponse:
-    """Render the reward campaign view page.
-
-    Args:
-        request (HttpRequest): The request object.
-
-    Returns:
-        HttpResponse: The response object.
-    """
-    reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
-    context: dict[str, QuerySet[RewardCampaign]] = {"reward_campaigns": reward_campaigns}
-    return TemplateResponse(request=request, template="reward_campaigns.html", context=context)
