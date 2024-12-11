@@ -95,7 +95,7 @@ ignore = "H006" # Img tag should have height and width attributes.
 DJANGO_SETTINGS_MODULE = "core.settings"
 
 # Only run tests in files that match this pattern.
-python_files = ["test_*.py"]
+python_files = ["*_test.py"]
 
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]

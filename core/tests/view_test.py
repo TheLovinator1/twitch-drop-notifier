@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 @pytest.mark.django_db
 def test_index_view(client: Client) -> None:
     """Test index view."""
-    url: str = reverse(viewname="core:index")
+    url: str = reverse(viewname="index")
     response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert isinstance(response, HttpResponse)

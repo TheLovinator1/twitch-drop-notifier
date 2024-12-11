@@ -18,7 +18,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 class User(AbstractUser):
     """Custom user model."""
 
-    class Meta(auto_prefetch.Model.Meta):
+    class Meta:
         ordering: ClassVar[list[str]] = ["username"]
 
     def __str__(self) -> str:
