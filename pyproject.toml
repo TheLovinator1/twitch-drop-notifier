@@ -7,14 +7,9 @@ requires-python = ">=3.13"
 dependencies = [
     "discord-webhook",
     "django-debug-toolbar",
-    "django-stubs-ext",
     "django",
     "platformdirs",
-    "psycopg[binary,pool]",
     "python-dotenv",
-    "django-pghistory",
-    "django-pgclone",
-    "django-pgstats",
     "django-auto-prefetch",
 ]
 
@@ -22,15 +17,7 @@ dependencies = [
 # Or you can install them with `uv install --dev -r requirements-dev.txt`.
 # uv can be replaced with `pip`if you don't have uv installed.
 [dependency-groups]
-dev = [
-    "djlint",
-    "pre-commit",
-    "pytest",
-    "pytest-django",
-    "ruff",
-    "django-stubs[compatible-mypy]",
-    "black",
-]
+dev = ["pre-commit", "pytest", "pytest-django", "ruff"]
 
 # https://docs.astral.sh/ruff/settings/
 [tool.ruff]

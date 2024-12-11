@@ -1,5 +1,3 @@
-django-stubs[compatible-mypy]
-djlint
 pre-commit
 pytest
 pytest-django

@@ -4,7 +4,6 @@ import logging
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import auto_prefetch
-import pghistory
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -46,7 +45,6 @@ class ScrapedJson(auto_prefetch.Model):
         return f"{'' if self.imported_at else 'Not imported - '}{self.created_at}"
 
 
-@pghistory.track()
 class Owner(auto_prefetch.Model):
     """The company or person that owns the game.
 
@@ -102,7 +100,6 @@ class Owner(auto_prefetch.Model):
         return self
 
 
-@pghistory.track()
 class Game(auto_prefetch.Model):
     """The game the drop campaign is for. Note that some reward campaigns are not tied to a game.
 
@@ -240,7 +237,6 @@ class Game(auto_prefetch.Model):
         return self
 
 
-@pghistory.track()
 class DropCampaign(auto_prefetch.Model):
     """This is the drop campaign we will see on the front end."""
 
@@ -345,7 +341,6 @@ class DropCampaign(auto_prefetch.Model):
         return self
 
 
-@pghistory.track()
 class TimeBasedDrop(auto_prefetch.Model):
     """This is the drop we will see on the front end.
 
@@ -475,7 +470,6 @@ class TimeBasedDrop(auto_prefetch.Model):
         return self
 
 
-@pghistory.track()
 class Benefit(auto_prefetch.Model):
     """Benefits are the rewards for the drops."""
 

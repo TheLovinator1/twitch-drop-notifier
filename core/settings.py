@@ -2,14 +2,9 @@ import os
 from pathlib import Path
 from typing import Literal
 
-import django_stubs_ext
 from django.contrib import messages
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
-
-# Monkeypatching Django, so stubs will work for all generics,
-# see: https://github.com/typeddjango/django-stubs
-django_stubs_ext.monkeypatch()
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv(verbose=True)
@@ -109,7 +104,6 @@ DISCORD_WEBHOOK_URL: str = os.getenv(key="DISCORD_WEBHOOK_URL", default="")
 # Be sure to add pghistory.admin above the django.contrib.admin, otherwise the custom admin templates won't be used.
 INSTALLED_APPS: list[str] = [
     "core.apps.CoreConfig",
-    "pghistory.admin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -118,10 +112,6 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "debug_toolbar",
-    "pgclone",
-    "pghistory",
-    "pgstats",
-    "pgtrigger",
 ]
 
 # Middleware is a framework of hooks into Django's request/response processing.
@@ -161,18 +151,20 @@ TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[t
     },
 ]
 
-# TODO(TheLovinator): Run psycopg[c] in production.
-# https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
-DATABASES: dict[str, dict[str, str | dict[str, bool]]] = {
+DATABASES: dict[str, dict[str, str | Path | dict[str, str | int]]] = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv(key="DB_NAME", default=""),
-        "USER": os.getenv(key="DB_USER", default=""),
-        "PASSWORD": os.getenv(key="DB_PASSWORD", default=""),
-        "HOST": os.getenv(key="DB_HOST", default=""),
-        "PORT": os.getenv(key="DB_PORT", default=""),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": DATA_DIR / "db.sqlite3",
         "OPTIONS": {
-            "pool": True,  # TODO(TheLovinator): Benchmark this.  # noqa: TD003
+            "transaction_mode": "IMMEDIATE",
+            "timeout": 5,
+            "init_command": """
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous=NORMAL;
+            PRAGMA mmap_size=134217728;
+            PRAGMA journal_size_limit=27103364;
+            PRAGMA cache_size=2000;
+            """,
         },
     },
 }
