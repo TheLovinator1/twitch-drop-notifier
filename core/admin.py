@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.contrib import admin
 
 from core.models import Benefit, DropCampaign, Game, Owner, TimeBasedDrop

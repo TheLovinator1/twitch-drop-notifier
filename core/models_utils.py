@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from django.db import models
+if TYPE_CHECKING:
+    from django.db import models
 
 logger: logging.Logger = logging.getLogger(__name__)
 

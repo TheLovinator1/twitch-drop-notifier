@@ -23,7 +23,8 @@ pip install -r requirements-dev.txt
 python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 
 # Rename .env.example to .env and fill in the required values.
-# DISCORD_WEBHOOK_URL and EMAIL_* can be left empty.
+# Only DJANGO_SECRET_KEY is required to run the server.
+# EMAIL_HOST_USER, EMAIL_HOST_PASSWORD and DISCORD_WEBHOOK_URL can be left empty if not needed.
 mv .env.example .env
 
 # Run the migrations.

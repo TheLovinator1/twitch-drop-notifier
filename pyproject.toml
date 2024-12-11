@@ -27,6 +27,9 @@ lint.select = ["ALL"]
 # https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
 lint.pydocstyle.convention = "google"
 
+# Add "from __future__ import annotations" to all files
+lint.isort.required-imports = ["from __future__ import annotations"]
+
 # Ignore some rules
 lint.ignore = [
     "CPY001", # Checks for the absence of copyright notices within Python files.

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import F, Prefetch
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.template.response import TemplateResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
+from core.import_json import import_data_from_view
 from core.models import Benefit, DropCampaign, Game, TimeBasedDrop
 
 if TYPE_CHECKING:
@@ -47,7 +50,8 @@ def get_games_with_drops() -> QuerySet[Game]:
     )
 
 
-def index(request: HttpRequest) -> HttpResponse:
+@require_http_methods(request_method_list=["GET", "HEAD"])
+def get_home(request: HttpRequest) -> HttpResponse:
     """Render the index page.
 
     Args:
@@ -58,18 +62,16 @@ def index(request: HttpRequest) -> HttpResponse:
     """
     try:
         games: QuerySet[Game] = get_games_with_drops()
-
     except Exception:
         logger.exception("Error fetching reward campaigns or games.")
         return HttpResponse(status=500)
 
-    context: dict[str, Any] = {
-        "games": games,
-    }
+    context: dict[str, Any] = {"games": games}
     return TemplateResponse(request, "index.html", context)
 
 
-def game_view(request: HttpRequest, twitch_id: int) -> HttpResponse:
+@require_http_methods(request_method_list=["GET", "HEAD"])
+def get_game(request: HttpRequest, twitch_id: int) -> HttpResponse:
     """Render the game view page.
 
     Args:
@@ -101,7 +103,8 @@ def game_view(request: HttpRequest, twitch_id: int) -> HttpResponse:
     return TemplateResponse(request=request, template="game.html", context=context)
 
 
-def games_view(request: HttpRequest) -> HttpResponse:
+@require_http_methods(request_method_list=["GET", "HEAD"])
+def get_games(request: HttpRequest) -> HttpResponse:
     """Render the game view page.
 
     Args:
@@ -114,3 +117,25 @@ def games_view(request: HttpRequest) -> HttpResponse:
 
     context: dict[str, QuerySet[Game] | str] = {"games": games}
     return TemplateResponse(request=request, template="games.html", context=context)
+
+
+@require_http_methods(request_method_list=["POST"])
+def get_import(request: HttpRequest) -> HttpResponse:
+    """Import data that are sent from Twitch Drop Miner.
+
+    Args:
+        request (HttpRequest): The request object.
+
+    Returns:
+        HttpResponse: The response object.
+    """
+    try:
+        data = json.loads(request.body)
+        logger.info(data)
+
+        # Import the data.
+        import_data_from_view(data)
+
+        return JsonResponse({"status": "success"}, status=200)
+    except json.JSONDecodeError as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)

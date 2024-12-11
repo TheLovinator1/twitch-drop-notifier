@@ -4,7 +4,7 @@ from debug_toolbar.toolbar import debug_toolbar_urls  # type: ignore[import-unty
 from django.contrib import admin
 from django.urls import URLPattern, URLResolver, path
 
-from core.views import game_view, games_view, index
+from core.views import get_game, get_games, get_home, get_import
 
 app_name: str = "core"
 
@@ -32,8 +32,9 @@ app_name: str = "core"
 # The URL patterns for the core app.
 urlpatterns: list[URLPattern | URLResolver] = [
     path(route="admin/", view=admin.site.urls),
-    path(route="", view=index, name="index"),
-    path(route="game/<int:twitch_id>/", view=game_view, name="game"),
-    path(route="games/", view=games_view, name="games"),
+    path(route="", view=get_home, name="index"),
+    path(route="game/<int:twitch_id>/", view=get_game, name="game"),
+    path(route="games/", view=get_games, name="games"),
+    path(route="import/", view=get_import, name="import"),
     *debug_toolbar_urls(),
 ]
