@@ -97,6 +97,12 @@ DJANGO_SETTINGS_MODULE = "core.settings"
 # Only run tests in files that match this pattern.
 python_files = ["*_test.py"]
 
+# Enable logging in the console.
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]
 

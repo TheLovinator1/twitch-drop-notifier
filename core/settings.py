@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Literal
@@ -7,6 +8,8 @@ from typing import Literal
 from django.contrib import messages
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv(verbose=True)
