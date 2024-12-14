@@ -1,5 +1,9 @@
 name: Ruff
 on: push
+env:
+  DJANGO_SECRET_KEY: "abc123"
+  DEBUG: "True"
+
 jobs:
   build:
     runs-on: ubuntu-latest
