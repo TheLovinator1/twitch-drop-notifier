@@ -12,7 +12,7 @@ env:
   DEBUG: "True"
 
 jobs:
-  build:
+  ruff:
     runs-on: ubuntu-latest
     steps:
       # Download the source code
