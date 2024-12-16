@@ -10,7 +10,7 @@ from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from core.import_json import import_data_from_view
+from core.import_json import import_data
 from core.models import Benefit, DropCampaign, Game, TimeBasedDrop
 
 if TYPE_CHECKING:
@@ -134,7 +134,7 @@ def get_import(request: HttpRequest) -> HttpResponse:
         logger.info(data)
 
         # Import the data.
-        import_data_from_view(data)
+        import_data(data)
 
         return JsonResponse({"status": "success"}, status=200)
     except json.JSONDecodeError as e:

@@ -69,7 +69,7 @@ class Owner(auto_prefetch.Model):
     # Django fields
     # Example: "36c4e21d-bdf3-410c-97c3-5a5a4bf1399b"
     twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the owner.")
-    created_at = models.DateTimeField(auto_created=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
     # Twitch fields
@@ -104,68 +104,30 @@ class Game(auto_prefetch.Model):
     """The game the drop campaign is for. Note that some reward campaigns are not tied to a game.
 
     JSON:
-        {
-            "data": {
-                "user": {
-                    "dropCampaign": {
-                        "game": {
-                            "id": "155409827",
-                            "slug": "pokemon-trading-card-game-live",
-                            "displayName": "Pok\u00e9mon Trading Card Game Live",
-                            "__typename": "Game"
-                        }
-                    }
-                }
-            }
+        "game": {
+            "id": "155409827",
+            "slug": "pokemon-trading-card-game-live",
+            "displayName": "Pok\u00e9mon Trading Card Game Live",
+            "__typename": "Game"
         }
+
 
     Secondary JSON:
-        {
-            "data": {
-                "currentUser": {
-                    "dropCampaigns": [
-                        {
-                            "game": {
-                                "id": "155409827",
-                                "displayName": "Pok\u00e9mon Trading Card Game Live",
-                                "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/155409827_IGDB-120x160.jpg",
-                                "__typename": "Game"
-                            }
-                        }
-                    ]
-                }
-            }
+        "game": {
+            "id": "155409827",
+            "displayName": "Pok\u00e9mon Trading Card Game Live",
+            "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/155409827_IGDB-120x160.jpg",
+            "__typename": "Game"
         }
 
+
     Tertiary JSON:
-        [
-            {
-                "data": {
-                    "user": {
-                        "dropCampaign": {
-                            "timeBasedDrops": [
-                                {
-                                    "benefitEdges": [
-                                        {
-                                            "benefit": {
-                                                "id": "ea74f727-a52f-11ef-811f-0a58a9feac02",
-                                                "createdAt": "2024-11-17T22:04:28.735Z",
-                                                "entitlementLimit": 1,
-                                                "game": {
-                                                    "id": "155409827",
-                                                    "name": "Pok\u00e9mon Trading Card Game Live",
-                                                    "__typename": "Game"
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        ]
+        "game": {
+            "id": "155409827",
+            "name": "Pok\u00e9mon Trading Card Game Live",
+            "__typename": "Game"
+        }
+
     """
 
     # Django fields
@@ -212,6 +174,10 @@ class Game(auto_prefetch.Model):
         if wrong_typename(data, "Game"):
             return self
 
+        if not owner:
+            logger.error("Owner is required for %s", self)
+            return self
+
         # Map the fields from the JSON data to the Django model fields.
         field_mapping: dict[str, str] = {
             "displayName": "display_name",
@@ -224,15 +190,14 @@ class Game(auto_prefetch.Model):
         if updated > 0:
             logger.info("Updated %s fields for %s", updated, self)
 
-        if not owner:
-            logger.error("Owner is required for %s", self)
-            return self
-
         # Update the owner if the owner is different or not set.
         if owner != self.org:
             self.org = owner
             logger.info("Updated owner %s for %s", owner, self)
-            self.save()
+
+        self.game_url = f"https://www.twitch.tv/directory/category/{self.slug}"
+
+        self.save()
 
         return self
 
@@ -244,7 +209,7 @@ class DropCampaign(auto_prefetch.Model):
     # "f257ce6e-502a-11ef-816e-0a58a9feac02"
     twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the drop campaign.")
     created_at = models.DateTimeField(
-        auto_created=True,
+        auto_now_add=True,
         help_text="When the drop campaign was first added to the database.",
     )
     modified_at = models.DateTimeField(auto_now=True, help_text="When the drop campaign was last modified.")
@@ -346,59 +311,47 @@ class TimeBasedDrop(auto_prefetch.Model):
 
     JSON:
         {
-            "data": {
-                "user": {
-                    "dropCampaign": {
-                        "timeBasedDrops": [
-                            {
-                                "id": "bd663e10-b297-11ef-a6a3-0a58a9feac02",
-                                "requiredSubs": 0,
-                                "benefitEdges": [
-                                    {
-                                        "benefit": {
-                                            "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad_CUSTOM_ID_EnergisingBoltFlaskEffect",
-                                            "createdAt": "2024-12-04T23:25:50.995Z",
-                                            "entitlementLimit": 1,
-                                            "game": {
-                                                "id": "1702520304",
-                                                "name": "Path of Exile 2",
-                                                "__typename": "Game"
-                                            },
-                                            "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/d70e4e75-7237-4730-9a10-b6016aaaa795.png",
-                                            "isIosAvailable": false,
-                                            "name": "Energising Bolt Flask",
-                                            "ownerOrganization": {
-                                                "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad",
-                                                "name": "Grinding Gear Games",
-                                                "__typename": "Organization"
-                                            },
-                                            "distributionType": "DIRECT_ENTITLEMENT",
-                                            "__typename": "DropBenefit"
-                                        },
-                                        "entitlementLimit": 1,
-                                        "__typename": "DropBenefitEdge"
-                                    }
-                                ],
-                                "endAt": "2024-12-14T07:59:59.996Z",
-                                "name": "Early Access Bundle",
-                                "preconditionDrops": null,
-                                "requiredMinutesWatched": 180,
-                                "startAt": "2024-12-06T19:00:00Z",
-                                "__typename": "TimeBasedDrop"
-                            }
-                        ],
-                        "__typename": "DropCampaign"
+            "id": "bd663e10-b297-11ef-a6a3-0a58a9feac02",
+            "requiredSubs": 0,
+            "benefitEdges": [
+                {
+                    "benefit": {
+                        "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad_CUSTOM_ID_EnergisingBoltFlaskEffect",
+                        "createdAt": "2024-12-04T23:25:50.995Z",
+                        "entitlementLimit": 1,
+                        "game": {
+                            "id": "1702520304",
+                            "name": "Path of Exile 2",
+                            "__typename": "Game"
+                        },
+                        "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/d70e4e75-7237-4730-9a10-b6016aaaa795.png",
+                        "isIosAvailable": false,
+                        "name": "Energising Bolt Flask",
+                        "ownerOrganization": {
+                            "id": "f751ba67-7c8b-4c41-b6df-bcea0914f3ad",
+                            "name": "Grinding Gear Games",
+                            "__typename": "Organization"
+                        },
+                        "distributionType": "DIRECT_ENTITLEMENT",
+                        "__typename": "DropBenefit"
                     },
-                    "__typename": "User"
+                    "entitlementLimit": 1,
+                    "__typename": "DropBenefitEdge"
                 }
-            }
+            ],
+            "endAt": "2024-12-14T07:59:59.996Z",
+            "name": "Early Access Bundle",
+            "preconditionDrops": null,
+            "requiredMinutesWatched": 180,
+            "startAt": "2024-12-06T19:00:00Z",
+            "__typename": "TimeBasedDrop"
         }
-    """  # noqa: E501
+    """
 
     # Django fields
     # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
     twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the drop.")
-    created_at = models.DateTimeField(auto_created=True, help_text="When the drop was first added to the database.")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the drop was first added to the database.")
     modified_at = models.DateTimeField(auto_now=True, help_text="When the drop was last modified.")
 
     # Twitch fields
@@ -476,7 +429,7 @@ class Benefit(auto_prefetch.Model):
     # Django fields
     # "d5cdf372-502b-11ef-bafd-0a58a9feac02"
     twitch_id = models.TextField(primary_key=True)
-    created_at = models.DateTimeField(null=True, auto_created=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
     # Twitch fields
