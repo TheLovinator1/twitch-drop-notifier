@@ -78,12 +78,13 @@ def get_value(data: dict, key: str) -> datetime | str | None:
     """
     data_key: Any | None = data.get(key)
     if not data_key:
-        logger.error("Key %s not found in %s", key, data)
+        logger.warning("Key %s not found in %s", key, data)
         return None
 
     # Dates are in the format "2024-08-12T05:59:59.999Z"
     dates: list[str] = ["endAt", "endsAt,", "startAt", "startsAt", "createdAt", "earnableUntil"]
     if key in dates:
+        logger.debug("Converting %s to datetime", data_key)
         return datetime.fromisoformat(data_key.replace("Z", "+00:00"))
 
     return data_key
