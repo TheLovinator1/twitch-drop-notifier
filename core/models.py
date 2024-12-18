@@ -133,7 +133,7 @@ class Game(auto_prefetch.Model):
     # Django fields
     # "155409827"
     twitch_id = models.TextField(primary_key=True, help_text="The Twitch ID of the game.")
-    created_at = models.DateTimeField(auto_created=True, help_text="When the game was first added to the database.")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the game was first added to the database.")
     modified_at = models.DateTimeField(auto_now=True, help_text="When the game was last modified.")
 
     # Twitch fields
