@@ -50,14 +50,14 @@ repos:
 
   # A tool (and pre-commit hook) to automatically upgrade syntax for newer versions of the language.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
+    rev: v3.19.1
     hooks:
       - id: pyupgrade
         args: ["--py311-plus"]
 
   # An extremely fast Python linter and formatter.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.3
+    rev: v0.8.4
     hooks:
       - id: ruff-format
       - id: ruff
