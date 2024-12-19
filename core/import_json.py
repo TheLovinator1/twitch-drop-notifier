@@ -24,18 +24,21 @@ def import_data(data: dict[str, Any]) -> None:
         import_drop_campaigns(drop_campaigns=drop_campaign_json)
 
 
-def import_drop_campaigns(drop_campaigns: dict[str, Any]) -> None:
+def import_drop_campaigns(drop_campaigns: dict[str, Any]) -> DropCampaign | None:
     """Import the drop campaigns from the data.
 
     Args:
         drop_campaigns (dict[str, Any]): The drop campaign data.
+
+    Returns:
+        DropCampaign | None: The drop campaign instance if created, otherwise None
     """
     twitch_id: str = drop_campaigns.get("id", "")
     logger.info("\tProcessing drop campaign: %s", twitch_id)
 
     if not twitch_id:
         logger.error("\tDrop campaign has no ID: %s", drop_campaigns)
-        return
+        return None
 
     drop_campaign, created = DropCampaign.objects.get_or_create(twitch_id=twitch_id)
     if created:
@@ -47,14 +50,20 @@ def import_drop_campaigns(drop_campaigns: dict[str, Any]) -> None:
 
     import_time_based_drops(drop_campaigns, drop_campaign)
 
+    return drop_campaign
 
-def import_time_based_drops(drop_campaign_json: dict[str, Any], drop_campaign: DropCampaign) -> None:
+
+def import_time_based_drops(drop_campaign_json: dict[str, Any], drop_campaign: DropCampaign) -> list[TimeBasedDrop]:
     """Import the time-based drops from a drop campaign.
 
     Args:
         drop_campaign_json (dict[str, Any]): The drop campaign data.
         drop_campaign (DropCampaign): The drop campaign instance.
+
+    Returns:
+        list[TimeBasedDrop]: The imported time-based drops.
     """
+    imported_drops: list[TimeBasedDrop] = []
     time_based_drops: list[dict[str, Any]] = find_typename_in_json(drop_campaign_json, "TimeBasedDrop")
     for time_based_drop_json in time_based_drops:
         time_based_drop_id: str = time_based_drop_json.get("id", "")
@@ -69,15 +78,22 @@ def import_time_based_drops(drop_campaign_json: dict[str, Any], drop_campaign: D
         time_based_drop.import_json(time_based_drop_json, drop_campaign)
 
         import_drop_benefits(time_based_drop_json, time_based_drop)
+        imported_drops.append(time_based_drop)
+
+    return imported_drops
 
 
-def import_drop_benefits(time_based_drop_json: dict[str, Any], time_based_drop: TimeBasedDrop) -> None:
+def import_drop_benefits(time_based_drop_json: dict[str, Any], time_based_drop: TimeBasedDrop) -> list[Benefit]:
     """Import the drop benefits from a time-based drop.
 
     Args:
         time_based_drop_json (dict[str, Any]): The time-based drop data.
         time_based_drop (TimeBasedDrop): The time-based drop instance.
+
+    Returns:
+        list[Benefit]: The imported drop benefits.
     """
+    drop_benefits: list[Benefit] = []
     benefits: list[dict[str, Any]] = find_typename_in_json(time_based_drop_json, "DropBenefit")
     for benefit_json in benefits:
         benefit_id: str = benefit_json.get("id", "")
@@ -90,6 +106,9 @@ def import_drop_benefits(time_based_drop_json: dict[str, Any], time_based_drop: 
             logger.info("\tCreated benefit: %s", benefit)
 
         benefit.import_json(benefit_json, time_based_drop)
+        drop_benefits.append(benefit)
+
+    return drop_benefits
 
 
 def import_owner_data(drop_campaign: dict[str, Any]) -> Owner:

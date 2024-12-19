@@ -175,7 +175,7 @@ class Game(auto_prefetch.Model):
             return self
 
         if not owner:
-            logger.error("Owner is required for %s", self)
+            logger.error("Owner is required for %s: %s", self, data)
             return self
 
         # Map the fields from the JSON data to the Django model fields.
