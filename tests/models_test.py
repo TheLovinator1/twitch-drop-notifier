@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.import_json import (
     find_typename_in_json,
+    import_data,
     import_drop_benefits,
     import_drop_campaigns,
     import_game_data,
@@ -164,3 +166,109 @@ def test_import_drop_benefits() -> None:
     assert drop_benefit[0].modified_at, assert_msg
 
     assert drop_benefit[0].time_based_drop == time_based_drop[0], "TimeBasedDrop was not set on the Benefit model"
+
+
+@pytest.mark.django_db
+def test_import_time_based_drops() -> None:
+    """Test the import_time_based_drops function."""
+    json_file_raw: str = Path("tests/response.json").read_text(encoding="utf-8")
+    json_file: dict = json.loads(json_file_raw)
+
+    drop_campaign_json: dict[str, Any] = _validate_extraction(
+        json=json_file,
+        typename="DropCampaign",
+        no_result_err_msg="DropCampaign JSON not found",
+        id_err_msg="DropCampaign ID not found",
+    )
+    assert drop_campaign_json
+
+    drop_campaign: DropCampaign | None = import_drop_campaigns(drop_campaigns=drop_campaign_json)
+    assert drop_campaign, f"Failed to import JSON data into DropCampaign model: {drop_campaign_json=}"
+
+    time_based_drop_json: dict[str, Any] = _validate_extraction(
+        json=drop_campaign_json,
+        typename="TimeBasedDrop",
+        no_result_err_msg="TimeBasedDrop JSON not found",
+        id_err_msg="TimeBasedDrop ID not found",
+    )
+    assert time_based_drop_json
+
+    time_based_drop: list[TimeBasedDrop] = import_time_based_drops(
+        drop_campaign_json=time_based_drop_json,
+        drop_campaign=drop_campaign,
+    )
+    assert time_based_drop, f"Failed to import JSON data into TimeBasedDrop model: {time_based_drop_json=}"
+
+    assert time_based_drop[0].twitch_id == time_based_drop_json.get(
+        "id",
+    ), "TimeBasedDrop ID was not set on the TimeBasedDrop model"
+
+    assert_msg: str = (
+        f"TimeBasedDrop created_at was not set on the TimeBasedDrop model: {time_based_drop[0].created_at=}"
+    )
+    assert time_based_drop[0].created_at, assert_msg
+
+    assert_msg = f"TimeBasedDrop modified_at was not set on the TimeBasedDrop model: {time_based_drop[0].modified_at=}"
+    assert time_based_drop[0].modified_at, assert_msg
+
+    assert time_based_drop[0].drop_campaign == drop_campaign, "DropCampaign was not set on the TimeBasedDrop model"
+
+
+@pytest.mark.django_db
+def test_import_drop_campaigns() -> None:
+    """Test the import_drop_campaigns function."""
+    json_file_raw: str = Path("tests/response.json").read_text(encoding="utf-8")
+    json_file: dict = json.loads(json_file_raw)
+
+    drop_campaign_json: dict[str, Any] = _validate_extraction(
+        json=json_file,
+        typename="DropCampaign",
+        no_result_err_msg="DropCampaign JSON not found",
+        id_err_msg="DropCampaign ID not found",
+    )
+    assert drop_campaign_json
+
+    drop_campaign: DropCampaign | None = import_drop_campaigns(drop_campaigns=drop_campaign_json)
+    assert drop_campaign, f"Failed to import JSON data into DropCampaign model: {drop_campaign_json=}"
+
+    assert drop_campaign.twitch_id == drop_campaign_json.get(
+        "id",
+    ), "DropCampaign ID was not set on the DropCampaign model"
+
+    assert_msg: str = f"DropCampaign created_at was not set on the DropCampaign model: {drop_campaign.created_at=}"
+    assert drop_campaign.created_at, assert_msg
+
+    assert_msg = f"DropCampaign modified_at was not set on the DropCampaign model: {drop_campaign.modified_at=}"
+    assert drop_campaign.modified_at, assert_msg
+
+
+@pytest.fixture
+def sample_data() -> dict[str, Any]:
+    """Sample data for testing import_data."""
+    return {
+        "__typename": "Root",
+        "data": [
+            {"__typename": "DropCampaign", "id": "campaign1", "name": "Campaign 1"},
+            {"__typename": "DropCampaign", "id": "campaign2", "name": "Campaign 2"},
+        ],
+    }
+
+
+@pytest.fixture
+def empty_data() -> dict[str, Any]:
+    """Empty data for testing import_data."""
+    return {"__typename": "Root", "data": []}
+
+
+@patch("core.import_json.import_drop_campaigns")
+def test_import_data(mock_import_drop_campaigns: MagicMock, sample_data: dict[str, Any]) -> None:
+    """Test the import_data function with valid data."""
+    import_data(sample_data)
+    assert mock_import_drop_campaigns.call_count == 2
+
+
+def test_import_data_no_campaigns(empty_data: dict[str, Any]) -> None:
+    """Test the import_data function with no drop campaigns."""
+    with patch("core.import_json.import_drop_campaigns") as mock_import_drop_campaigns:
+        import_data(empty_data)
+        mock_import_drop_campaigns.assert_not_called()
