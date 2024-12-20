@@ -20,7 +20,7 @@ jobs:
 
       # https://docs.astral.sh/uv/
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       # Set up our GitHub Actions workflow with the Python version specified in the .python-version file
       - name: "Set up Python"
